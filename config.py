@@ -3,7 +3,7 @@ import experiment_buddy
 
 import torch.nn as nn
 
-USE_BUDDY = False
+USE_BUDDY = True
 use_cuda = True
 host = ""
 
@@ -34,6 +34,7 @@ no_norm = False  # disables normalization, no reward shaping
 cuda = use_cuda and torch.cuda.is_available()
 opponent_actor = None
 starting_board_position = 0
+random_start_position = False
 
 if USE_BUDDY:
     experiment_buddy.register(locals())

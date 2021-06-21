@@ -23,7 +23,7 @@ obs_space = Box(np.zeros(13440), np.ones(13440))
 action_space = Discrete(6)
 nn_kwargs = {'batch_norm': True, 'recurrent': False, 'hidden_size': 512, 'cnn_config': 'conv5', }
 actor_critic = Policy(PommNet(obs_shape=obs_space.shape, **nn_kwargs).train(), action_space=action_space)
-actor_critic.load_state_dict(torch.load("./checkpoints/stage_1.pt")[0])
+actor_critic.load_state_dict(torch.load("./checkpoints/stage_2_both_start_pos.pt")[0])
 actor_critic = actor_critic.to(device)
 
 

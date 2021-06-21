@@ -60,9 +60,16 @@ class RawObsEnvWrapper(gym.Wrapper):
         return self.env.get_last_step_raw()
 
 
-def make_env(env_id, seed, rank, log_dir=None, add_timestep=False, allow_early_resets=False):
+def make_env(env_id, seed, rank, log_dir=None, add_timestep=False, allow_early_resets=False, random_position=0):
     def _thunk():
-        env = PommerEnvWrapperFrameSkip2(num_stack=5, start_pos=0, opponent_actor=None, board='GraphicOVOCompact-v0')
+        if random_position:
+            env = PommerEnvWrapperFrameSkip2(
+                num_stack=5, start_pos=np.random.choice([0, 1]), opponent_actor=None, board='GraphicOVOCompact-v0'
+            )
+        else:
+            env = PommerEnvWrapperFrameSkip2(
+                num_stack=5, start_pos=0, opponent_actor=None, board='GraphicOVOCompact-v0'
+            )
         # hacky af
         obs, opp_obs = env.reset()
         env.training_agent = 0
@@ -97,8 +104,9 @@ def make_env(env_id, seed, rank, log_dir=None, add_timestep=False, allow_early_r
 
 
 def make_vec_envs(env_name, seed, num_processes, gamma, no_norm, num_stack,
-                  log_dir=None, add_timestep=False, device='cpu', allow_early_resets=False, eval=False):
-    envs = [make_env(env_name, seed, i, log_dir, add_timestep, allow_early_resets) for i in range(num_processes)]
+                  log_dir=None, add_timestep=False, device='cpu', allow_early_resets=False, eval=False,
+                  random_start_position=False):
+    envs = [make_env(env_name, seed, i, log_dir, add_timestep, allow_early_resets, random_start_position) for i in range(num_processes)]
 
     if len(envs) > 1:
         envs = SubprocVecEnv(envs)

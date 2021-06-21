@@ -52,14 +52,14 @@ def main():
 
     envs = make_vec_envs(
         config.env_name, config.seed, config.num_processes, config.gamma, config.no_norm, config.num_stack,
-        config.log_dir, config.add_timestep, device, allow_early_resets=False
+        config.log_dir, config.add_timestep, device, allow_early_resets=False, random_start_position=config.random_start_position
     )
 
     if config.eval_interval:
         eval_envs = make_vec_envs(
             config.env_name, config.seed + config.num_processes, config.num_processes, config.gamma,
             config.no_norm, config.num_stack, eval_log_dir, config.add_timestep, device,
-            allow_early_resets=True, eval=True
+            allow_early_resets=True, eval=True, random_start_position=config.random_start_position
         )
 
         if eval_envs.venv.__class__.__name__ == "VecNormalize":
