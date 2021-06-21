@@ -1,0 +1,9 @@
+gym
+matplotlib
+pybullet
+tqdm
+seaborn
+sklearn
+numpy
+opencv-python
+-e git+https://git@github.com/ministry-of-silly-code/experiment_buddy.git#egg=experiment_buddy
