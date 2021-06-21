@@ -32,6 +32,8 @@ add_timestep = False  # add time_step to observations
 recurrent_policy = False
 no_norm = False  # disables normalization, no reward shaping
 cuda = use_cuda and torch.cuda.is_available()
+opponent_actor = None
+starting_board_position = 0
 
 if USE_BUDDY:
     experiment_buddy.register(locals())

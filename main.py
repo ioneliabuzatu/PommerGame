@@ -72,6 +72,8 @@ def main():
     nn.train()
 
     actor_critic = Policy(nn, action_space=envs.action_space)
+    state_dict, _ = torch.load("./checkpoints/stage_1.pt")
+    actor_critic.load_state_dict(state_dict)
     actor_critic.to(device)
 
     agent = src.A2C_ACKTR(
