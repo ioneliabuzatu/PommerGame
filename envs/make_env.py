@@ -13,6 +13,7 @@ from helpers.vec_env.dummy_vec_env import DummyVecEnv
 from helpers.vec_env.subproc_vec_env import SubprocVecEnv
 from helpers.vec_env.vec_normalize import VecNormalize
 from envs.pommerman import PommermanEnvWrapper
+from helpers import stage_1_model
 
 try:
     import dm_control2gym
@@ -60,9 +61,9 @@ class RawObsEnvWrapper(gym.Wrapper):
         return self.env.get_last_step_raw()
 
 
-def make_env(env_id, seed, rank, log_dir=None, add_timestep=False, allow_early_resets=False):
+def make_env(env_id, seed, rank, log_dir=None, add_timestep=False, allow_early_resets=False, start_pos=0, opponent_actor=None):
     def _thunk():
-        env = PommerEnvWrapperFrameSkip2(num_stack=5, start_pos=0, opponent_actor=None, board='GraphicOVOCompact-v0')
+        env = PommerEnvWrapperFrameSkip2(num_stack=5, start_pos=start_pos, opponent_actor=opponent_actor, board='GraphicOVOCompact-v0')
         # hacky af
         obs, opp_obs = env.reset()
         env.training_agent = 0
@@ -98,7 +99,29 @@ def make_env(env_id, seed, rank, log_dir=None, add_timestep=False, allow_early_r
 
 def make_vec_envs(env_name, seed, num_processes, gamma, no_norm, num_stack,
                   log_dir=None, add_timestep=False, device='cpu', allow_early_resets=False, eval=False):
-    envs = [make_env(env_name, seed, i, log_dir, add_timestep, allow_early_resets) for i in range(num_processes)]
+
+    assert num_processes>=4, "Please set num_processes>=4 in config, otherwise not enough environments are created"
+
+    envs = []
+    for opp in ['simple', 'stage1']:
+        for start_pos in [0,1] * int(num_processes/4):
+            print(f"start_pos: {start_pos}, opponent: {opp}")
+            if opp=='simple':
+                opponent_actor = None
+            elif opp=='stage1':
+                opponent_actor = stage_1_model.load_model(train=False)
+
+            envs = [make_env(
+                env_name, 
+                seed, 
+                i, 
+                log_dir, 
+                add_timestep, 
+                allow_early_resets, 
+                start_pos=start_pos, 
+                opponent_actor=opponent_actor
+                ) for i in range(num_processes)]
+
 
     if len(envs) > 1:
         envs = SubprocVecEnv(envs)

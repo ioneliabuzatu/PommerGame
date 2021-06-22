@@ -6,11 +6,14 @@ from gym.spaces import Box, Discrete
 from src.models.model_pomm import PommNet
 from src.models.policy import Policy
 from visualize_agent import make_video
+import os, sys, argparse
+from datetime import datetime
+from helpers import stage_1_model
 
 N_game = 50
 NUM_ACTIONS = 6
 RENDER = False
-ENV_ID = 'GraphicOVOCompact-v0'
+ENV_ID = "GraphicOVOCompact-v0"
 ONNX_FILENAME = "second_stage_pommer_man.onnx"
 USE_CUDA = True
 
@@ -21,20 +24,39 @@ else:
 
 obs_space = Box(np.zeros(13440), np.ones(13440))
 action_space = Discrete(6)
-nn_kwargs = {'batch_norm': True, 'recurrent': False, 'hidden_size': 512, 'cnn_config': 'conv5', }
-actor_critic = Policy(PommNet(obs_shape=obs_space.shape, **nn_kwargs).train(), action_space=action_space)
-actor_critic.load_state_dict(torch.load("./checkpoints/stage_1.pt")[0])
+nn_kwargs = {
+    "batch_norm": True,
+    "recurrent": False,
+    "hidden_size": 512,
+    "cnn_config": "conv5",
+}
+actor_critic = Policy(
+    PommNet(obs_shape=obs_space.shape, **nn_kwargs).eval(), action_space=action_space
+)
+
+parser = argparse.ArgumentParser()
+parser.add_argument(
+    "path",
+    type=str,
+    help="path to .pt file",
+)
+args = parser.parse_args()
+print('-------------\nLoading model:', args.path, '\n-------------')
+
+actor_critic.load_state_dict(torch.load(args.path)[0])
 actor_critic = actor_critic.to(device)
 
 
-def evaluate_model(model, opponent_actor=None):
+def evaluate_model(model, opponent_actor=None, video_name=""):
     """
     the "Free-For-All" environment using the agent list env = PommerEnvWrapperFrameSkip2
     """
     print("evaluating...")
     model.eval()
 
-    env = PommerEnvWrapperFrameSkip2(num_stack=5, start_pos=0, board=ENV_ID, opponent_actor=opponent_actor)
+    env = PommerEnvWrapperFrameSkip2(
+        num_stack=5, start_pos=0, board=ENV_ID, opponent_actor=opponent_actor
+    )
     win_cnt = 0
     draw_cnt = 0
     lost_cnt = 0
@@ -61,13 +83,29 @@ def evaluate_model(model, opponent_actor=None):
             draw_cnt += 1
         else:
             lost_cnt = lost_cnt + 1
-    print('win:', win_cnt, 'draw_cnt:', draw_cnt, 'lose_cnt:', lost_cnt)
-    print('\n')
-    make_video(all_renders_img, "assets/three_games_pommerman")
+    print("win:", win_cnt, "draw_cnt:", draw_cnt, "lose_cnt:", lost_cnt)
+    print("\n")
+    time = datetime.now().strftime('%Y_%m_%d__%H_%M_%S')
+    print("Saving video as:", video_name)
+    make_video(all_renders_img, 'assets/' + video_name)
     return obs
 
 
-sample_input = evaluate_model(actor_critic)
+#opponent_actor=None
+opponent_actor=stage_1_model.load_model(train=False)
+
+video_name = args.path + ("__custom_opponent" if opponent_actor is not None else "__none_opponent")
+video_name = video_name.split('/')[-1]
+
+sample_input = evaluate_model(actor_critic, opponent_actor=opponent_actor, video_name=video_name)
+
+
 input = torch.tensor(sample_input).to(device)
-torch.onnx.export(actor_critic, input.float(), f=ONNX_FILENAME, export_params=True, opset_version=12,
-                  do_constant_folding=True)
+torch.onnx.export(
+    actor_critic,
+    input.float(),
+    f=ONNX_FILENAME,
+    export_params=True,
+    opset_version=12,
+    do_constant_folding=True,
+)

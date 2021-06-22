@@ -1,6 +1,9 @@
+
 import glob
 import os
 import time
+import re
+import argparse
 from collections import deque
 
 import numpy as np
@@ -13,6 +16,7 @@ from envs import make_vec_envs
 from src.models.model_pomm import PommNet
 from src.models.policy import Policy
 from src.rollout_storage import RolloutStorage
+from helpers import stage_1_model
 
 update_factor = config.num_steps * config.num_processes
 num_updates = int(config.num_frames) // update_factor
@@ -50,6 +54,7 @@ def main():
 
     tensorboard_x_data_points_counts = 0
 
+    print(f"Using {config.num_processes} different environments")
     envs = make_vec_envs(
         config.env_name, config.seed, config.num_processes, config.gamma, config.no_norm, config.num_stack,
         config.log_dir, config.add_timestep, device, allow_early_resets=False
@@ -67,11 +72,21 @@ def main():
     else:
         eval_envs = None
 
-    nn_kwargs = {'batch_norm': True, 'recurrent': config.recurrent_policy, 'hidden_size': 512, 'cnn_config': 'conv5', }
-    nn = PommNet(obs_shape=envs.observation_space.shape, **nn_kwargs)
-    nn.train()
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--path",
+        type=str,
+        help="path to .pt file",
+    )
+    args = parser.parse_args()
+    start_update = 0
+    if args.path:
+        print('-------------\nLoading checkpoint:', args.path, '\n-------------')
+        pattern = re.match(r'.*GraphicOVOCompact-v0_(\d+).pt', args.path)
+        if pattern:
+            start_update = int(pattern.group(1))
 
-    actor_critic = Policy(nn, action_space=envs.action_space)
+    actor_critic = stage_1_model.load_model(train=True, path=args.path)
     actor_critic.to(device)
 
     agent = src.A2C_ACKTR(
@@ -96,7 +111,7 @@ def main():
     episode_rewards = deque(maxlen=10)
 
     start = time.time()
-    for j in range(num_updates):
+    for j in range(start_update, start_update+num_updates):
         for step in range(config.num_steps):
             # Sample actions
             with torch.no_grad():
@@ -133,7 +148,7 @@ def main():
             state_dict = actor_critic.state_dict() if device.type == "cpu" else actor_critic.state_dict()
             save_model = [state_dict, hasattr(envs.venv, 'ob_rms') and envs.venv.ob_rms or None]
 
-            torch.save(save_model, os.path.join(save_path, config.env_name + ".pt"))
+            torch.save(save_model, os.path.join(save_path, config.env_name + f"_{j}.pt"))
 
         total_num_steps = (j + 1) * update_factor
 

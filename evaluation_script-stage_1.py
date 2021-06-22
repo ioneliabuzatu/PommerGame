@@ -21,7 +21,7 @@ np.random.seed(147)
 torch.manual_seed(147)
 
 if __name__ == "__main__":
-    N_EPISODES = 50
+    N_EPISODES = 100
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--submission", type=str,
@@ -34,10 +34,15 @@ if __name__ == "__main__":
     net = ConvertModel(onnx.load(model_file), experimental=True)
     net.eval()
 
-    win_count = 0.0
-    env = PommerEnvWrapperFrameSkip2(num_stack=5, start_pos=0, board='GraphicOVOCompact-v0')
+    win_count_0 = 0.0
+    win_count_1 = 0.0
 
+    start_pos = 0
+    env = PommerEnvWrapperFrameSkip2(num_stack=5, start_pos=start_pos, board='GraphicOVOCompact-v0')
     for i in range(N_EPISODES):
+        if i>=N_EPISODES/2:
+            start_pos = 1
+            env = PommerEnvWrapperFrameSkip2(num_stack=5, start_pos=start_pos, board='GraphicOVOCompact-v0')
 
         done = False
         obs, opponent_obs = env.reset()
@@ -49,7 +54,10 @@ if __name__ == "__main__":
             agent_step, opponent_step = env.step(action)
             obs, r, done, info = agent_step
 
-        if r > 0:
-            win_count += 1
+        if r > 0 and start_pos==0:
+            win_count_0 += 1
+        elif r>0:
+            win_count_1 += 1
 
-    print(win_count / N_EPISODES)
+    print("Pos. 0:", win_count_0 / (N_EPISODES/2))
+    print("Pos. 1:", win_count_1 / (N_EPISODES/2))
