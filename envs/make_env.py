@@ -66,10 +66,20 @@ def make_env(env_id, seed, rank, log_dir=None, add_timestep=False, allow_early_r
             env = PommerEnvWrapperFrameSkip2(
                 num_stack=5, start_pos=np.random.choice([0, 1]), opponent_actor=None, board='GraphicOVOCompact-v0'
             )
+            
         else:
             env = PommerEnvWrapperFrameSkip2(
                 num_stack=5, start_pos=0, opponent_actor=None, board='GraphicOVOCompact-v0'
             )
+        
+        ########################
+        # Generate random environment Settings
+        num_rigid = np.random.randint(1, high=5, size=None, dtype=int) * 2 # need even numbers for rigid tiles
+        num_wood = np.random.randint(3, high=5, size=None, dtype=int) * 2 # need even numbers for wood tiles
+        num_items = np.random.randint(1, high=6, size=None, dtype=int)
+        env.set_board_params(num_rigid=num_rigid, num_wood=num_wood, num_items=num_items) 
+        #########################
+            
         # hacky af
         obs, opp_obs = env.reset()
         env.training_agent = 0
