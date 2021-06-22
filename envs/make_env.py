@@ -103,6 +103,7 @@ def make_vec_envs(env_name, seed, num_processes, gamma, no_norm, num_stack,
     assert num_processes>=4, "Please set num_processes>=4 in config, otherwise not enough environments are created"
 
     envs = []
+    rank = 0
     for opp in ['simple', 'stage1']:
         for start_pos in [0,1] * int(num_processes/4):
             print(f"start_pos: {start_pos}, opponent: {opp}")
@@ -111,16 +112,20 @@ def make_vec_envs(env_name, seed, num_processes, gamma, no_norm, num_stack,
             elif opp=='stage1':
                 opponent_actor = stage_1_model.load_model(train=False)
 
-            envs = [make_env(
+            envs.append(make_env(
                 env_name, 
                 seed, 
-                i, 
+                rank, 
                 log_dir, 
                 add_timestep, 
                 allow_early_resets, 
                 start_pos=start_pos, 
                 opponent_actor=opponent_actor
-                ) for i in range(num_processes)]
+                )
+            )
+            rank += 1
+
+    print(f"len(envs)={len(envs)}")
 
 
     if len(envs) > 1:
