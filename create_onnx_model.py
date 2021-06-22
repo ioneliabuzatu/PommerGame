@@ -58,14 +58,12 @@ def evaluate_model(model, opponent_actor=None, video_name=""):
         num_stack=5, start_pos=0, board=ENV_ID, opponent_actor=opponent_actor
     )
     win_cnt = 0
-    draw_cnt = 0
     lost_cnt = 0
     all_renders_img = []
 
     for i_episode in range(N_game):
         obs, opponent_obs = env.reset()
         done = False
-        step_cnt = 0
         while not done:
             if i_episode < 4:
                 rgb_img = np.array(env.get_rgb_img())
@@ -75,15 +73,13 @@ def evaluate_model(model, opponent_actor=None, video_name=""):
             action = net_out.argmax(1).item()
             agent_step, opponent_step = env.step(action)
             obs, r, done, info = agent_step
-            step_cnt += 1
 
         if r > 0:
             win_cnt += 1
-        elif step_cnt >= 800:
-            draw_cnt += 1
         else:
-            lost_cnt = lost_cnt + 1
-    print("win:", win_cnt, "draw_cnt:", draw_cnt, "lose_cnt:", lost_cnt)
+            lost_cnt += 1
+
+    print("win:", win_cnt, "lose_cnt:", lost_cnt)
     print("\n")
     time = datetime.now().strftime('%Y_%m_%d__%H_%M_%S')
     print("Saving video as:", video_name)

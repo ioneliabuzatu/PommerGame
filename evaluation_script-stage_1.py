@@ -40,7 +40,7 @@ if __name__ == "__main__":
     start_pos = 0
     env = PommerEnvWrapperFrameSkip2(num_stack=5, start_pos=start_pos, board='GraphicOVOCompact-v0')
     for i in range(N_EPISODES):
-        if i>=N_EPISODES/2:
+        if i==N_EPISODES/2:
             start_pos = 1
             env = PommerEnvWrapperFrameSkip2(num_stack=5, start_pos=start_pos, board='GraphicOVOCompact-v0')
 

@@ -54,7 +54,7 @@ def main():
 
     tensorboard_x_data_points_counts = 0
 
-    print(f"Using {config.num_processes} different environments")
+    print(f"Using {config.num_processes} processes")
     envs = make_vec_envs(
         config.env_name, config.seed, config.num_processes, config.gamma, config.no_norm, config.num_stack,
         config.log_dir, config.add_timestep, device, allow_early_resets=False
