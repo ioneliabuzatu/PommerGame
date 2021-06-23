@@ -56,18 +56,16 @@ def play(model, opponent_actor=None):
                 net_out = model(torch.tensor(obs).float())
                 action = net_out.argmax(1).item()
 
-                if opponent_actor is None:
-                    agent_step, opponent_step = env.step(action)
-                else:
+                if opponent_actor is not None:
                     opponent_obs = torch.from_numpy(np.array(opponent_obs)).float()
                     net_out = opponent_actor(opponent_obs).cpu().detach().numpy()
                     opponent_action = np.argmax(net_out)
 
-                    agent_step, opponent_step = env.step(action, opponent_action)
+                agent_step, opponent_step = env.step(action, opponent_action)
 
                 obs, r, done, info = agent_step
 
-                if k > 200:
+                if k > 800:
                     r = -1
                     break
 

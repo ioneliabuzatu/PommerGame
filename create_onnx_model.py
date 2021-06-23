@@ -40,6 +40,11 @@ parser.add_argument(
     type=str,
     help="path to .pt file",
 )
+parser.add_argument(
+    "--name",
+    type=str,
+    help="name of resulting onnx file",
+)
 args = parser.parse_args()
 print('-------------\nLoading model:', args.path, '\n-------------')
 
@@ -93,14 +98,15 @@ opponent_actor=stage_1_model.load_model(train=False)
 video_name = args.path + ("__custom_opponent" if opponent_actor is not None else "__none_opponent")
 video_name = video_name.split('/')[-1]
 
-sample_input = evaluate_model(actor_critic, opponent_actor=opponent_actor, video_name=video_name)
+#sample_input = evaluate_model(actor_critic, opponent_actor=opponent_actor, video_name=video_name)
+#input = torch.tensor(sample_input).to(device)
 
-
-input = torch.tensor(sample_input).to(device)
+input = torch.zeros((5, 56, 48)).to(device)
+filename = ONNX_FILENAME if not args.name else args.name
 torch.onnx.export(
     actor_critic,
     input.float(),
-    f=ONNX_FILENAME,
+    f=filename,
     export_params=True,
     opset_version=12,
     do_constant_folding=True,

@@ -31,6 +31,7 @@ if __name__ == "__main__":
     agent.eval()
     # Opponent Network
     if args.opponent is not None:
+        print("loading opponent: ", opponent_file)
         opponent = ConvertModel(onnx.load(opponent_file), experimental=True).cuda()
         opponent.eval()
 
@@ -66,13 +67,16 @@ if __name__ == "__main__":
             opponent_obs, _, _, _ = opponent_step
             n_steps += 1
             if n_steps > 800:
+                print("Draw")
                 # game resulted in a draw, not counted
                 r = 0
                 break
 
         if r > 0:
+            print("Win")
             win_count_player += 1
         elif r < 0:
+            print("Loss")
             win_count_opponent += 1
 
     print(f"Win ratio of agent: {win_count_player/N_EPISODES}")
