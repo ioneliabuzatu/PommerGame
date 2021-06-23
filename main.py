@@ -79,15 +79,6 @@ def train(opponent=None, checkpoint_path="checkpoints/stage_2.pt"):
     actor_critic.load_state_dict(state_dict)
     actor_critic.to(device)
 
-    opponent_actor_critic = deepcopy(actor_critic)
-    
-    envs = make_vec_envs(
-        config.env_name, config.seed, config.num_processes, config.gamma, config.no_norm, config.num_stack,
-        config.log_dir, config.add_timestep, device, allow_early_resets=False,
-        random_start_position=config.random_start_position,
-        opponent=opponent_actor_critic
-    )
-
     agent = src.A2C_ACKTR(
         actor_critic, config.value_loss_coef,
         config.entropy_coef,
