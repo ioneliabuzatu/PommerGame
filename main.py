@@ -204,7 +204,7 @@ def main():
                         obs, eval_recurrent_hidden_states, eval_masks, deterministic=True)
 
                 # Obser reward and next obs
-                obs, reward, done, infos = eval_envs.step(action)
+                obs, reward, done, infos, _, _ = eval_envs.step(action)
                 eval_masks = torch.tensor([[0.0] if done_ else [1.0] for done_ in done], device=device)
                 for info in infos:
                     if 'episode' in info.keys():
