@@ -1,85 +1,76 @@
-# PyTorch imports
 import numpy as np
 import torch
 import onnx
 from onnx2pytorch import ConvertModel
 import argparse
-import sys
 from gym import logger as gymlogger
-# Environment import and set logger level to display error only
-gymlogger.set_level(40)  # error only
-# ignore prints to stdout of imports
-save_stdout = sys.stdout
-sys.stdout = open('trash', 'w')
 import os
-os.system("git clone https://github.com/MultiAgentLearning/playground ./pommer_setup")
-os.system("pip install -U ./pommer_setup")
-os.system('rm -rf ./pommer_setup')
-os.system("git clone https://github.com/RLCommunity/graphic_pomme_env ./graphic_pomme_env")
-os.system("pip install -U ./graphic_pomme_env")
-os.system('rm -rf ./graphic_pomme_env')
-sys.stdout = save_stdout
-from graphic_pomme_env import graphic_pomme_env
-from graphic_pomme_env.wrappers import PommerEnvWrapperFrameSkip2
+
+gymlogger.set_level(40)  # error only
+os.system("pip install -U git+https://github.com/MultiAgentLearning/playground")
+try:
+    import graphic_pomme_env
+except ImportError:
+    os.system("pip install -U git+https://github.com/RLCommunity/graphic_pomme_env")
+    from graphic_pomme_env.wrappers import PommerEnvWrapperFrameSkip2
 
 
-# Seed random number generators
-if os.path.exists("seed.rnd"):
-    with open("seed.rnd", "r") as f:
-        seed = int(f.readline().strip())
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-else:
-    seed = None
+np.random.seed(147)
+torch.manual_seed(147)
 
 if __name__ == "__main__":
-    N_EPISODES = 50
+    N_EPISODES = 100
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--submission", type=str, default="checkpoint")
+    parser.add_argument("--agent", type=str, help="Path to onnx model of agent", default="./checkpoints/stage_2.onnx")
+    parser.add_argument("--opponent", type=str, help="Path to onnx model of opponent",
+                        default="./checkpoints/curriculum-actors/submission_onnx_WR86.onnx")
     args = parser.parse_args()
-    model_file = args.submission
+    model_file = args.agent
+    opponent_file = args.opponent
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # Agent Network
+    agent = ConvertModel(onnx.load(model_file), experimental=True).cuda()
+    agent.eval()
+    # Opponent Network
+    opponent = ConvertModel(onnx.load(opponent_file), experimental=True).cuda()
+    opponent.eval()
 
-    # Network
-    net = ConvertModel(onnx.load(model_file), experimental=True)
-    net = net.to(device)
-    net.eval()
+    win_count_player = 0.0
+    win_count_opponent = 0.0
 
-    win_count = 0.0
-    env = PommerEnvWrapperFrameSkip2(num_stack=5, start_pos=0, opponent_actor=None, board='GraphicOVOCompact-v0')
-    
-    win_count_PosZero = 0.0
-    win_count_PosOne = 0.0
-    
+    env = PommerEnvWrapperFrameSkip2(num_stack=5, start_pos=0, board='GraphicOVOCompact-v0')
     for i in range(N_EPISODES):
-        if seed is not None:
-            seed = np.random.randint(1e7)
-        
-        if changePos and i >= N_EPISODES/2:
-          start_pos = 1
-          env = PommerEnvWrapperFrameSkip2(num_stack=num_stack, start_pos=1, opponent_actor=None, board='GraphicOVOCompact-v0')
-          changePos = False
-        
-
+        if i > 50:
+            env = PommerEnvWrapperFrameSkip2(num_stack=5, start_pos=1, board='GraphicOVOCompact-v0')
+            
         done = False
         obs, opponent_obs = env.reset()
+        observations = []
+        n_steps = 0
         while not done:
-            obs = torch.from_numpy(np.array(obs)).to(device)
-            net_out = net(obs).detach().cpu().numpy()
+            obs = torch.from_numpy(np.array(obs)).float().cuda()
+            observations.extend(obs.cpu().detach().numpy().astype(np.uint8))
+            net_out = agent(obs).cpu().detach().numpy()
             action = np.argmax(net_out)
 
-            agent_step, opponent_step = env.step(action)
+            opponent_obs = torch.from_numpy(np.array(opponent_obs)).float().cuda()
+            net_out = opponent(opponent_obs).cpu().detach().numpy()
+            opponent_action = np.argmax(net_out)
+
+            agent_step, opponent_step = env.step(action, opponent_action)
             obs, r, done, info = agent_step
+            opponent_obs, _, _, _ = opponent_step
+            n_steps += 1
+            if n_steps > 800:
+                # game resulted in a draw, not counted
+                r = 0
+                break
 
-        if r > 0 and i < N_EPISODES/2:
-          win_count_PosZero += 1
-        elif r > 0:
-          win_count_PosOne += 1
+        if r > 0:
+            win_count_player += 1
+        elif r < 0:
+            win_count_opponent += 1
 
-
-    print(f'WR Start Pos 0: {win_count_PosZero / (N_EPISODES / 2)}')
-    print(f'WR Start Pos 1: {win_count_PosOne / (N_EPISODES / 2)}')
-    print(f'WR: {(win_count_PosOne + win_count_PosZero)/ N_EPISODES}')
-
+    print(f"Win ratio of agent: {win_count_player / N_EPISODES}")
+    print(f"Win ratio of opponent: {win_count_opponent / N_EPISODES}")
