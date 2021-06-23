@@ -36,7 +36,7 @@ except ImportError:
     pass
 
 from graphic_pomme_env import graphic_pomme_env
-from graphic_pomme_env.wrappers import PommerEnvWrapperFrameSkip2
+from helpers.my_wrappers import PommerEnvWrapperFrameSkip2
 
 
 class RawObsEnvWrapper(gym.Wrapper):
