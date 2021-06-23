@@ -24,9 +24,7 @@ if __name__ == "__main__":
     N_EPISODES = 50
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--submission", type=str,
-                        default="/home/ionelia/pycharm-projects/master/semester2/rl-deep/UE/challenge-pommerman"
-                                "/pommerlady/Pommerman-DRL/submission_model.onnx")
+    parser.add_argument("--submission", type=str, default="submission_model.onnx")
     args = parser.parse_args()
     model_file = args.submission
 

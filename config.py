@@ -3,7 +3,7 @@ import experiment_buddy
 
 import torch.nn as nn
 
-USE_BUDDY = True
+USE_BUDDY = False
 use_cuda = True
 host = ""
 
@@ -18,13 +18,13 @@ entropy_coef = 0.01
 value_loss_coef = 0.5
 max_grad_norm = 0.5
 seed = 1
-num_processes = 16
+num_processes = 1
 num_steps = 5
 num_stack = 1
 log_interval = 10
 save_interval = 100
 eval_interval = 1000
-num_frames = 5e7
+num_frames = 1000 # 5e7
 env_name = 'GraphicOVOCompact-v0'
 log_dir = '/tmp/gym/'
 save_dir = './checkpoints/'

@@ -2,6 +2,7 @@ import glob
 import os
 import time
 from collections import deque
+from copy import deepcopy
 
 import numpy as np
 import torch
@@ -39,7 +40,7 @@ except OSError:
         os.remove(f)
 
 
-def main():
+def train(opponent=None, checkpoint_path="checkpoints/stage_2.pt"):
     torch.set_num_threads(1)
     device = torch.device("cuda:0" if config.cuda else "cpu")
     print(f"Training model on device [{device}] starting now...")
@@ -49,10 +50,12 @@ def main():
         tensorboard = SummaryWriter("results")
 
     tensorboard_x_data_points_counts = 0
-
+    
     envs = make_vec_envs(
         config.env_name, config.seed, config.num_processes, config.gamma, config.no_norm, config.num_stack,
-        config.log_dir, config.add_timestep, device, allow_early_resets=False, random_start_position=config.random_start_position
+        config.log_dir, config.add_timestep, device, allow_early_resets=False,
+        random_start_position=config.random_start_position,
+        opponent=opponent
     )
 
     if config.eval_interval:
@@ -72,9 +75,18 @@ def main():
     nn.train()
 
     actor_critic = Policy(nn, action_space=envs.action_space)
-    state_dict, _ = torch.load("./checkpoints/stage_1.pt")
+    state_dict, _ = torch.load(checkpoint_path)
     actor_critic.load_state_dict(state_dict)
     actor_critic.to(device)
+
+    opponent_actor_critic = deepcopy(actor_critic)
+    
+    envs = make_vec_envs(
+        config.env_name, config.seed, config.num_processes, config.gamma, config.no_norm, config.num_stack,
+        config.log_dir, config.add_timestep, device, allow_early_resets=False,
+        random_start_position=config.random_start_position,
+        opponent=opponent_actor_critic
+    )
 
     agent = src.A2C_ACKTR(
         actor_critic, config.value_loss_coef,
@@ -135,7 +147,7 @@ def main():
             state_dict = actor_critic.state_dict() if device.type == "cpu" else actor_critic.state_dict()
             save_model = [state_dict, hasattr(envs.venv, 'ob_rms') and envs.venv.ob_rms or None]
 
-            torch.save(save_model, os.path.join(save_path, config.env_name + ".pt"))
+            torch.save(save_model, os.path.join(save_path, "curriculum.pt"))
 
         total_num_steps = (j + 1) * update_factor
 
@@ -176,4 +188,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    train()

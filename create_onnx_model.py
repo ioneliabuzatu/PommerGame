@@ -67,7 +67,7 @@ def evaluate_model(model, opponent_actor=None):
     return obs
 
 
-sample_input = evaluate_model(actor_critic)
+    sample_input = evaluate_model(actor_critic)
 input = torch.tensor(sample_input).to(device)
 torch.onnx.export(actor_critic, input.float(), f=ONNX_FILENAME, export_params=True, opset_version=12,
                   do_constant_folding=True)
