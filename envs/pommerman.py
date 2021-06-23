@@ -138,7 +138,7 @@ class PommermanEnvWrapper(gym.Wrapper):
             random.seed(seed)
 
     def step(self, actions):
-        ret, opp_ret = self.env.step(actions)
+        ret, opp_ret, blast_str, ammo = self.env.step(actions)
         state, reward, done, _ = ret
         if self.feature_config:
             agent_state = featurize(
@@ -148,7 +148,7 @@ class PommermanEnvWrapper(gym.Wrapper):
         else:
             agent_state = np.array(state).flatten()
 
-        return agent_state, reward, done, {}
+        return agent_state, reward, done, {}, blast_str, ammo
 
     def reset(self):
         obs = self.env.reset()

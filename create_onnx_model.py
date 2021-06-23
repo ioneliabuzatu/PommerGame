@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-from graphic_pomme_env.wrappers import PommerEnvWrapperFrameSkip2
+from helpers.my_wrappers import PommerEnvWrapperFrameSkip2
 from gym.spaces import Box, Discrete
 
 from src.models.model_pomm import PommNet
@@ -8,7 +8,7 @@ from src.models.policy import Policy
 from visualize_agent import make_video
 import os, sys, argparse
 from datetime import datetime
-from helpers import stage_1_model
+from helpers import pretrained_model
 
 N_game = 50
 NUM_ACTIONS = 6
@@ -93,7 +93,7 @@ def evaluate_model(model, opponent_actor=None, video_name=""):
 
 
 #opponent_actor=None
-opponent_actor=stage_1_model.load_model(train=False)
+opponent_actor=pretrained_model.load_pretrained(train=False)
 
 video_name = args.path + ("__custom_opponent" if opponent_actor is not None else "__none_opponent")
 video_name = video_name.split('/')[-1]

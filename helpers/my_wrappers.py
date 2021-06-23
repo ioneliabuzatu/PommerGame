@@ -2,6 +2,7 @@ from collections import deque
 import numpy as np
 from pommerman import make
 from pommerman.agents import RandomAgent, SimpleAgent
+import torch
 
 # FrameStack implementation
 # leaned on https://github.com/openai/gym/blob/master/gym/wrappers/frame_stack.py
@@ -167,27 +168,31 @@ class PommerEnvWrapperFrameSkip2():
 
     def step(self, action, opponent_action=None):
         # get opponent action
-        if not self.opponent_actor:
-            raw_obs_list = self.env.get_last_step_raw()
-            opponent_action = self.opponent.act(
-                raw_obs_list[1 - self.cur_start_pos],
-                NUM_ACTIONS)  # for SimpleAgent
-        else:
-            if opponent_action is None:
+        if opponent_action is None:
+            if not self.opponent_actor:
+                raw_obs_list = self.env.get_last_step_raw()
+                opponent_action = self.opponent.act(
+                    raw_obs_list[1 - self.cur_start_pos],
+                    NUM_ACTIONS)  # for SimpleAgent
+            else:
                 oppon_frame_stack = self.oppon_frame_stack_even if self.next_is_even else self.oppon_frame_stack_odd
                 opponent_action = self.opponent_actor(oppon_frame_stack)
-            else:
-                opponent_action = opponent_action
 
-        if type(opponent_action)!=int: opponent_action = int(opponent_action.argmax())
+        if type(opponent_action)==torch.Tensor: 
+            opponent_action = int(opponent_action.argmax())
 
         if self.cur_start_pos == 0:
             action_list = [action, opponent_action]
+            blast_str = self.env._agents[0].blast_strength
+            ammo = self.env._agents[0].ammo
         else:
             action_list = [opponent_action, action]
+            blast_str = self.env._agents[1].blast_strength
+            ammo = self.env._agents[1].ammo
 
         # get observations
         observation_list, reward_list, done, info = self.env.step(action_list)
+
 
         rgb_img = observation_list[self.cur_start_pos]
         self.last_state_rgb_img = rgb_img
@@ -211,7 +216,7 @@ class PommerEnvWrapperFrameSkip2():
         opponent_ret = (
         oppon_obs_stack, reward_list[1 - self.cur_start_pos], done, info)
 
-        return agent_ret, opponent_ret
+        return agent_ret, opponent_ret, blast_str, ammo
 
     def reset(self, **kwargs):
         if self.env is None or self.start_pos == -1:

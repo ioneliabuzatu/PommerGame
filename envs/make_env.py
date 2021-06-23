@@ -13,7 +13,7 @@ from helpers.vec_env.dummy_vec_env import DummyVecEnv
 from helpers.vec_env.subproc_vec_env import SubprocVecEnv
 from helpers.vec_env.vec_normalize import VecNormalize
 from envs.pommerman import PommermanEnvWrapper
-from helpers import stage_1_model
+from helpers import pretrained_model
 
 try:
     import dm_control2gym
@@ -110,7 +110,7 @@ def make_vec_envs(env_name, seed, num_processes, gamma, no_norm, num_stack,
             if opp=='simple':
                 opponent_actor = None
             elif opp=='stage1':
-                opponent_actor = stage_1_model.load_model(train=False)
+                opponent_actor = pretrained_model.load_pretrained(train=False)
 
             envs.append(make_env(
                 env_name, 
@@ -125,6 +125,20 @@ def make_vec_envs(env_name, seed, num_processes, gamma, no_norm, num_stack,
             )
             rank += 1
 
+    # for debugging
+    #envs = []
+    #rank = 0
+    #envs.append(make_env(
+    #    env_name, 
+    #    seed, 
+    #    rank, 
+    #    log_dir, 
+    #    add_timestep, 
+    #    allow_early_resets, 
+    #    start_pos=0, 
+    #    opponent_actor=None
+    #    ))
+ 
     print(f"len(envs)={len(envs)}")
 
 
@@ -154,6 +168,7 @@ def make_vec_envs(env_name, seed, num_processes, gamma, no_norm, num_stack,
 
     if num_stack > 1:
         envs = VecPyTorchFrameStack(envs, num_stack, device)
+    
 
     return envs
 
@@ -202,10 +217,10 @@ class VecPyTorch(VecEnvWrapper):
         self.venv.step_async(actions)
 
     def step_wait(self):
-        obs, reward, done, info = self.venv.step_wait()
+        obs, reward, done, info, blast_str, ammo = self.venv.step_wait()
         obs = torch.from_numpy(obs).float().to(self.device)
         reward = torch.from_numpy(np.expand_dims(np.stack(reward), 1)).float()
-        return obs, reward, done, info
+        return obs, reward, done, info, blast_str, ammo
 
 
 # Derived from

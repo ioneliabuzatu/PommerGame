@@ -12,7 +12,10 @@ gymlogger.set_level(40)  # error only
 #os.system("git clone https://github.com/RLCommunity/graphic_pomme_env ./graphic_pomme_env")
 #os.system("pip install -U ./graphic_pomme_env")
 #os.system('rm -rf ./graphic_pomme_env')
-from graphic_pomme_env.wrappers import PommerEnvWrapperFrameSkip2
+
+from graphic_pomme_env import graphic_pomme_env
+from helpers.my_wrappers import PommerEnvWrapperFrameSkip2
+
 np.random.seed(147)
 torch.manual_seed(147)
 
@@ -27,15 +30,19 @@ if __name__ == "__main__":
     opponent_file = args.opponent
 
     # Agent Network
+    print("\n------------\nagent file: ", model_file, '\n------------\n')
     agent = ConvertModel(onnx.load(model_file), experimental=True).cuda()
     agent.eval()
     # Opponent Network
-    if args.opponent is not None:
-        print("loading opponent: ", opponent_file)
+    if opponent_file is not None:
+        print("\n------------\nopponent file: ", opponent_file, '\n------------\n')
         opponent = ConvertModel(onnx.load(opponent_file), experimental=True).cuda()
         opponent.eval()
+    else:
+        print("\n------------\nNo opponent given, using SimpleAgent()...\n------------\n")
 
     win_count_player = 0.0
+    draw_count = 0.0
     win_count_opponent = 0.0
 
     for i in range(N_EPISODES):
@@ -54,7 +61,7 @@ if __name__ == "__main__":
             net_out = agent(obs).cpu().detach().numpy()
             action = np.argmax(net_out)
 
-            if args.opponent is not None:
+            if opponent_file is not None:
                 opponent_obs = torch.from_numpy(np.array(opponent_obs)).float().cuda()
                 net_out = opponent(opponent_obs).cpu().detach().numpy()
                 opponent_action = np.argmax(net_out)
@@ -68,7 +75,7 @@ if __name__ == "__main__":
             n_steps += 1
             if n_steps > 800:
                 print("Draw")
-                # game resulted in a draw, not counted
+                draw_count += 1
                 r = 0
                 break
 
@@ -79,5 +86,6 @@ if __name__ == "__main__":
             print("Loss")
             win_count_opponent += 1
 
-    print(f"Win ratio of agent: {win_count_player/N_EPISODES}")
-    print(f"Win ratio of opponent: {win_count_opponent / N_EPISODES}")
+    #print(f"Win ratio of agent: {win_count_player/N_EPISODES}")
+    #print(f"Win ratio of opponent: {win_count_opponent / N_EPISODES}")
+    print(f"Agent ({model_file}) had {win_count_player} wins, {draw_count} draws and {win_count_opponent} losses against the opponent ({opponent_file})")

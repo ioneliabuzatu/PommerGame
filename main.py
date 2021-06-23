@@ -16,7 +16,7 @@ from envs import make_vec_envs
 from src.models.model_pomm import PommNet
 from src.models.policy import Policy
 from src.rollout_storage import RolloutStorage
-from helpers import stage_1_model
+from helpers import pretrained_model
 
 update_factor = config.num_steps * config.num_processes
 num_updates = int(config.num_frames) // update_factor
@@ -86,7 +86,7 @@ def main():
         if pattern:
             start_update = int(pattern.group(1))
 
-    actor_critic = stage_1_model.load_model(train=True, path=args.path)
+    actor_critic = pretrained_model.load_pretrained(train=True, path=args.path)
     actor_critic.to(device)
 
     agent = src.A2C_ACKTR(
@@ -111,6 +111,9 @@ def main():
     episode_rewards = deque(maxlen=10)
 
     start = time.time()
+    times_since_bomb = torch.zeros((config.num_processes,1), dtype=torch.int32)
+    last_blast_str = torch.zeros((config.num_processes,1), dtype=torch.int32) + 2
+    last_max_ammo = torch.ones((config.num_processes,1), dtype=torch.int32) 
     for j in range(start_update, start_update+num_updates):
         for step in range(config.num_steps):
             # Sample actions
@@ -121,15 +124,37 @@ def main():
                     rollouts.masks[step])
 
             # Obser reward and next obs
-            obs, reward, done, infos = envs.step(action)
+            obs, reward, done, infos, blast_str, ammo = envs.step(action)
 
             for info in infos:
                 if 'episode' in info.keys():
                     episode_rewards.append(info['episode']['r'])
 
+            blast_str = torch.as_tensor(blast_str, dtype=torch.int32)[:,None]
+            ammo = torch.as_tensor(ammo, dtype=torch.int32)[:,None]
+
+            # give reward for collecting power-up
+            idx_blast_incr = blast_str > last_blast_str
+            if idx_blast_incr.sum(): print("Hooray! Blast Strength increased!")
+            reward[idx_blast_incr] += 0.5
+            last_blast_str = blast_str 
+
+            # give reward for collecting ammo-up
+            idx_ammo_incr = ammo > last_max_ammo
+            if idx_ammo_incr.sum(): print("Hooray! Ammo increased!")
+            reward[idx_ammo_incr] += 0.5
+            last_max_ammo[idx_ammo_incr] = ammo[idx_ammo_incr]
+
+            # decrease reward if our agent CAN NOT be responsible for the opponents death
+            idx_bomb_kill = (times_since_bomb<10) * (reward.cpu()>0)
+            reward[~idx_bomb_kill] *= 0.5
+
             # If done then clean the history of observations.
             masks = torch.tensor([[0.0] if done_ else [1.0] for done_ in done], device=device)
             rollouts.insert(obs, recurrent_hidden_states, action, action_log_prob, value, reward, masks)
+
+            times_since_bomb[action==5] = 0
+            times_since_bomb += 1
 
         with torch.no_grad():
             next_value = actor_critic.get_value(rollouts.obs[-1],

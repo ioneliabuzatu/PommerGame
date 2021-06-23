@@ -1,7 +1,10 @@
 import cv2
 import numpy as np
 import torch
-from graphic_pomme_env.wrappers import PommerEnvWrapperFrameSkip2
+
+from graphic_pomme_env import graphic_pomme_env
+from helpers.my_wrappers import PommerEnvWrapperFrameSkip2
+
 from gym.spaces import Box, Discrete
 
 from src.models.model_pomm import PommNet
@@ -32,12 +35,12 @@ def play(model, opponent_actor=None):
     text_img = cv2.putText(black_img.copy(), opp, text_pos, cv2.FONT_HERSHEY_SIMPLEX, 0.35, (255,255,255), 1)
     text_pos = (0, 28)
     text_img = cv2.putText(text_img, 'Opponent', text_pos, cv2.FONT_HERSHEY_SIMPLEX, 0.35, (255,255,255), 1)
-    all_renders_img += [text_img]*15
+    all_renders_img += [text_img]*8
 
     for start_pos in [0,1]:
         text_pos = (1, 13)
         text_img = cv2.putText(black_img.copy(), f'Pos. {start_pos}', text_pos, cv2.FONT_HERSHEY_SIMPLEX, 0.35, (255,255,255), 1)
-        all_renders_img += [text_img]*10
+        all_renders_img += [text_img]*5
 
         env = PommerEnvWrapperFrameSkip2(
             num_stack=5, start_pos=start_pos, board="GraphicOVOCompact-v0", opponent_actor=opponent_actor
@@ -60,13 +63,14 @@ def play(model, opponent_actor=None):
                     opponent_obs = torch.from_numpy(np.array(opponent_obs)).float()
                     net_out = opponent_actor(opponent_obs).cpu().detach().numpy()
                     opponent_action = np.argmax(net_out)
+                else:
+                    opponent_action = None
 
                 agent_step, opponent_step = env.step(action, opponent_action)
 
                 obs, r, done, info = agent_step
 
                 if k > 800:
-                    r = -1
                     break
 
                 k += 1
@@ -74,10 +78,10 @@ def play(model, opponent_actor=None):
             text_pos = (1, 13)
             text_img = cv2.putText(black_img.copy(), f'Game {i_episode+1}', text_pos, cv2.FONT_HERSHEY_SIMPLEX, 0.3, (255,255,255), 1)
             text_pos = (1, 25)
-            text = "WIN" * (r==1) + "DRAW" * (r==-1) + "LOSS" * (r==0)
-            print(text)
+            text = "WIN" * (r>0) + "DRAW" * (r==0) + "LOSS" * (r<0)
+            print(text, f"after {k} steps")
             text_img = cv2.putText(text_img, text, text_pos, cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255,255,255), 1)
-            renders_img = [text_img]*8 + renders_img
+            renders_img = [text_img]*5 + renders_img
 
             all_renders_img += renders_img
 
