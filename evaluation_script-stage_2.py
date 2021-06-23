@@ -66,9 +66,9 @@ if __name__ == "__main__":
                 net_out = opponent(opponent_obs).cpu().detach().numpy()
                 opponent_action = np.argmax(net_out)
 
-                agent_step, opponent_step = env.step(action, opponent_action)
+                agent_step, opponent_step, _, _ = env.step(action, opponent_action)
             else:
-                agent_step, opponent_step = env.step(action)
+                agent_step, opponent_step, _, _ = env.step(action)
 
             obs, r, done, info = agent_step
             opponent_obs, _, _, _ = opponent_step

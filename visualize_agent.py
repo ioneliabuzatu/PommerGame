@@ -66,7 +66,7 @@ def play(model, opponent_actor=None):
                 else:
                     opponent_action = None
 
-                agent_step, opponent_step = env.step(action, opponent_action)
+                agent_step, opponent_step, _, _ = env.step(action, opponent_action)
 
                 obs, r, done, info = agent_step
 
