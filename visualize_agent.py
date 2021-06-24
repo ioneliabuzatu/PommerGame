@@ -31,10 +31,10 @@ def play(model, opponent_actor=None):
     black_img = np.zeros((56,48,3), dtype=np.uint8)
 
     opp = ('Simple' if not opponent_actor else 'Custom')
-    text_pos = (0, 13)
-    text_img = cv2.putText(black_img.copy(), opp, text_pos, cv2.FONT_HERSHEY_SIMPLEX, 0.35, (255,255,255), 1)
-    text_pos = (0, 28)
-    text_img = cv2.putText(text_img, 'Opponent', text_pos, cv2.FONT_HERSHEY_SIMPLEX, 0.35, (255,255,255), 1)
+    text_pos = (-1, 13)
+    text_img = cv2.putText(black_img.copy(), opp, text_pos, cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255,255,255), 1)
+    text_pos = (-1, 28)
+    text_img = cv2.putText(text_img, 'Opponent', text_pos, cv2.FONT_HERSHEY_SIMPLEX, 0.3, (255,255,255), 1)
     all_renders_img += [text_img]*8
 
     for start_pos in [0,1]:
@@ -53,6 +53,7 @@ def play(model, opponent_actor=None):
             renders_img = []
             k = 0
             while not done:
+                k += 1
                 rgb_img = np.array(env.get_rgb_img())
                 renders_img.append(rgb_img)
 
@@ -63,25 +64,25 @@ def play(model, opponent_actor=None):
                     opponent_obs = torch.from_numpy(np.array(opponent_obs)).float()
                     net_out = opponent_actor(opponent_obs).cpu().detach().numpy()
                     opponent_action = np.argmax(net_out)
-                else:
-                    opponent_action = None
 
-                agent_step, opponent_step, _, _ = env.step(action, opponent_action)
+                    agent_step, opponent_step, _, _ = env.step(action, opponent_action)
+                else:
+                    agent_step, opponent_step, _, _ = env.step(action)
 
                 obs, r, done, info = agent_step
+                opponent_obs, _, _, _ = opponent_step
 
-                if k > 800:
-                    break
-
-                k += 1
 
             text_pos = (1, 13)
-            text_img = cv2.putText(black_img.copy(), f'Game {i_episode+1}', text_pos, cv2.FONT_HERSHEY_SIMPLEX, 0.3, (255,255,255), 1)
+            text_img = cv2.putText(black_img.copy(), f'Game {i_episode+1}:', text_pos, cv2.FONT_HERSHEY_SIMPLEX, 0.3, (255,255,255), 1)
             text_pos = (1, 25)
-            text = "WIN" * (r>0) + "DRAW" * (r==0) + "LOSS" * (r<0)
+            text = "WIN" * (r>0) + "DRAW" * (k>=800 or r==0) + "LOSS" * (k<800 and r<0)
             print(text, f"after {k} steps")
             text_img = cv2.putText(text_img, text, text_pos, cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255,255,255), 1)
-            renders_img = [text_img]*5 + renders_img
+            if text == "DRAW":
+                renders_img = [text_img]*5 + renders_img[:100]
+            else:
+                renders_img = [text_img]*5 + renders_img
 
             all_renders_img += renders_img
 
