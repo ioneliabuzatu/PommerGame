@@ -181,8 +181,8 @@ class PommerEnvWrapperFrameSkip2():
                 oppon_state = oppon_frame_stack.get_observation()
                 oppon_state = torch.from_numpy(np.array(oppon_state)).float()
 
-                if config.use_cuda:
-                    oppon_state = oppon_state.cuda()
+                device = next(self.opponent_actor.parameters()).device
+                oppon_state = oppon_state.to(device)
 
                 net_out = self.opponent_actor(oppon_state).detach().cpu().numpy()
                 opponent_action = np.argmax(net_out).item()
