@@ -37,7 +37,10 @@ def play(model, opponent_actor=None):
     text_img = cv2.putText(text_img, 'Opponent', text_pos, cv2.FONT_HERSHEY_SIMPLEX, 0.3, (255,255,255), 1)
     all_renders_img += [text_img]*8
 
+    win_count_player = 0
+    win_count_opponent = 0
     for start_pos in [0,1]:
+        print(f"\n -- Start position {start_pos}:\n")
         text_pos = (1, 13)
         text_img = cv2.putText(black_img.copy(), f'Pos. {start_pos}', text_pos, cv2.FONT_HERSHEY_SIMPLEX, 0.35, (255,255,255), 1)
         all_renders_img += [text_img]*5
@@ -51,12 +54,14 @@ def play(model, opponent_actor=None):
             done = False
 
             renders_img = []
+            rgb_img = np.array(env.get_rgb_img())
+            renders_img.append(rgb_img)
             k = 0
+
+            last_blast_str = 2
+            last_max_ammo = 1 
             while not done:
                 k += 1
-                rgb_img = np.array(env.get_rgb_img())
-                renders_img.append(rgb_img)
-
                 net_out = model(torch.tensor(obs).float())
                 action = net_out.argmax(1).item()
 
@@ -65,29 +70,56 @@ def play(model, opponent_actor=None):
                     net_out = opponent_actor(opponent_obs).cpu().detach().numpy()
                     opponent_action = np.argmax(net_out)
 
-                    agent_step, opponent_step, _, _ = env.step(action, opponent_action)
+                    agent_step, opponent_step, blast_str, ammo = env.step(action, opponent_action)
                 else:
-                    agent_step, opponent_step, _, _ = env.step(action)
+                    agent_step, opponent_step, blast_str, ammo = env.step(action)
 
                 obs, r, done, info = agent_step
                 opponent_obs, _, _, _ = opponent_step
 
+                if blast_str > last_blast_str:
+                    print(" > Hooray! Blast Strength increased!")
+                    last_blast_str = blast_str 
+
+                if ammo > last_max_ammo:
+                    print(" > Hooray! Ammo increased!")
+                    last_max_ammo = ammo
+
+                rgb_img = np.array(env.get_rgb_img())
+                renders_img.append(rgb_img)
+
+                if k >= 800:
+                    r = 0
+                    outcome = "DRAW"
+                    break
+
+            if r > 0:
+                win_count_player += 1
+                outcome = "WIN"
+            elif r < 0:
+                win_count_opponent += 1
+                outcome = "LOSS"
+
+
+            text_pos = (3, 30)
+            text = f"{win_count_player}-{win_count_opponent}"
+            end_img = cv2.putText(rgb_img.copy(), text, text_pos, cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0,0,0), 1)
 
             text_pos = (1, 13)
             text_img = cv2.putText(black_img.copy(), f'Game {i_episode+1}:', text_pos, cv2.FONT_HERSHEY_SIMPLEX, 0.3, (255,255,255), 1)
             text_pos = (1, 25)
-            text = "WIN" * (r>0) + "DRAW" * (k>=800 or r==0) + "LOSS" * (k<800 and r<0)
-            print(text, f"after {k} steps")
-            text_img = cv2.putText(text_img, text, text_pos, cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255,255,255), 1)
-            if text == "DRAW":
-                renders_img = [text_img]*5 + renders_img[:100]
+            print(outcome, f"after {k} steps")
+            text_img = cv2.putText(text_img, outcome, text_pos, cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255,255,255), 1)
+
+            if outcome == "DRAW":
+                renders_img = [text_img]*5 + renders_img[:100] + [end_img] * 10 # draws can take up a lot of time, so cut off at 100 frames
             else:
-                renders_img = [text_img]*5 + renders_img
+                renders_img = [text_img]*5 + renders_img + [end_img] * 10
 
             all_renders_img += renders_img
 
 
-    make_video(all_renders_img, "assets/three_games_pommerman_new")
+    make_video(all_renders_img, "assets/latest_pommerman_games")
 
 
 if __name__ == "__main__":
