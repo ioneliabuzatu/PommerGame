@@ -3,6 +3,7 @@ import numpy as np
 from pommerman import make
 from pommerman.agents import RandomAgent, SimpleAgent
 import torch
+import config
 
 # FrameStack implementation
 # leaned on https://github.com/openai/gym/blob/master/gym/wrappers/frame_stack.py
@@ -175,29 +176,38 @@ class PommerEnvWrapperFrameSkip2():
                     raw_obs_list[1 - self.cur_start_pos],
                     NUM_ACTIONS)  # for SimpleAgent
             else:
-                oppon_frame_stack = self.oppon_frame_stack_even if self.next_is_even else self.oppon_frame_stack_odd
-                opponent_action = self.opponent_actor(oppon_frame_stack)
+                raw_obs_list = self.env.get_last_step_raw()
+                oppon_frame_stack = self.oppon_frame_stack_odd if self.next_is_even else self.oppon_frame_stack_even
+                oppon_state = oppon_frame_stack.get_observation()
+                oppon_state = torch.from_numpy(np.array(oppon_state)).float()
 
-        if type(opponent_action)==torch.Tensor: 
-            opponent_action = int(opponent_action.argmax())
+                if config.use_cuda:
+                    oppon_state = oppon_state.cuda()
+
+                net_out = self.opponent_actor(oppon_state).detach().cpu().numpy()
+                opponent_action = np.argmax(net_out).item()
 
         if self.cur_start_pos == 0:
             action_list = [action, opponent_action]
-            blast_str = self.env._agents[0].blast_strength
-            ammo = self.env._agents[0].ammo
         else:
             action_list = [opponent_action, action]
-            blast_str = self.env._agents[1].blast_strength
-            ammo = self.env._agents[1].ammo
 
         # get observations
         observation_list, reward_list, done, info = self.env.step(action_list)
 
+        if self.cur_start_pos == 0:
+            blast_str = self.env._agents[0].blast_strength
+            ammo = self.env._agents[0].ammo
+        else:
+            blast_str = self.env._agents[1].blast_strength
+            ammo = self.env._agents[1].ammo
 
+        # for agent
         rgb_img = observation_list[self.cur_start_pos]
         self.last_state_rgb_img = rgb_img
         observation = rgb2grayscale(rgb_img)
 
+        # for opponent
         oppon_obs = rgb2grayscale(observation_list[1 - self.cur_start_pos])
 
         # stack observations
