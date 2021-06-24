@@ -1,4 +1,3 @@
-import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from .model_generic import NNBase
@@ -254,10 +253,6 @@ class PommNet(NNBase):
         )
 
     def forward(self, inputs, rnn_hxs, masks):
-        # opponent gets frame stack as inputs -> need to get observation from framestack!
-        if type(inputs)!=torch.Tensor:
-            inputs = torch.as_tensor(inputs.get_observation(), dtype=torch.float).flatten()[None,:]
-
         if self.other_shape[0]:
             inputs_image = inputs[:, :-self.other_shape[0]].view([-1] + self.image_shape)
         else:

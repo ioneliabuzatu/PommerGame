@@ -10,17 +10,17 @@ def load_pretrained(train=True, path=None):
     action_space = Discrete(6)
     nn_kwargs = {'batch_norm': True, 'recurrent': False, 'hidden_size': 512, 'cnn_config': 'conv5', }
 
+    if path is None:
+        path = "./checkpoints/stage_2.pt"
+
     if train:
-        print("loading model for training...")
+        print(f"loading model for TRAINING: {path}")
         actor_critic = Policy(PommNet(obs_shape=obs_space.shape, **nn_kwargs).train(), action_space=action_space)
     else:
-        print("loading model for evaluation...")
+        print(f"loading model for EVALUATION: {path}")
         actor_critic = Policy(PommNet(obs_shape=obs_space.shape, **nn_kwargs).eval(), action_space=action_space)
-
-    if path is None:
-        actor_critic.load_state_dict(torch.load("./checkpoints/stage_2.pt")[0])
-    else:
-        actor_critic.load_state_dict(torch.load(path)[0])
+    
+    actor_critic.load_state_dict(torch.load(path)[0])
 
     return actor_critic
 

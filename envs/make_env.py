@@ -62,8 +62,21 @@ class RawObsEnvWrapper(gym.Wrapper):
 
 
 def make_env(env_id, seed, rank, log_dir=None, add_timestep=False, allow_early_resets=False, start_pos=0, opponent_actor=None):
-    def _thunk():
+
+    # Had to put the following outside of the _thunk() function, otherwise
+    # it always created the same environment for all environments
+    # Generate random environment Settings
+    num_rigid = np.random.randint(1, high=5, size=None, dtype=int) * 2 # need even numbers for rigid tiles
+    num_wood = np.random.randint(3, high=5, size=None, dtype=int) * 2 # need even numbers for wood tiles
+    num_items = np.random.randint(2, high=6, size=None, dtype=int)
+
+    def _thunk(num_rigid=num_rigid, num_wood=num_wood, num_items=num_items):
         env = PommerEnvWrapperFrameSkip2(num_stack=5, start_pos=start_pos, opponent_actor=opponent_actor, board='GraphicOVOCompact-v0')
+
+        # Generate random environment Settings
+        print(f"num_rigid={num_rigid}, num_wood={num_wood}, num_items={num_items}")
+        env.set_board_params(num_rigid=num_rigid, num_wood=num_wood, num_items=num_items) 
+
         # hacky af
         obs, opp_obs = env.reset()
         env.training_agent = 0
@@ -101,16 +114,11 @@ def make_vec_envs(env_name, seed, num_processes, gamma, no_norm, num_stack,
                   log_dir=None, add_timestep=False, device='cpu', allow_early_resets=False, eval=False):
 
     assert num_processes>=4, "Please set num_processes>=4 in config, otherwise not enough environments are created"
-
     envs = []
     rank = 0
     for opp in ['simple', 'stage1']:
         for start_pos in [0,1] * int(num_processes/4):
             print(f"start_pos: {start_pos}, opponent: {opp}")
-            if opp=='simple':
-                opponent_actor = None
-            elif opp=='stage1':
-                opponent_actor = pretrained_model.load_pretrained(train=False)
 
             envs.append(make_env(
                 env_name, 
@@ -120,12 +128,12 @@ def make_vec_envs(env_name, seed, num_processes, gamma, no_norm, num_stack,
                 add_timestep, 
                 allow_early_resets, 
                 start_pos=start_pos, 
-                opponent_actor=opponent_actor
+                opponent_actor=(None if opp=='simple' else pretrained_model.load_pretrained(train=False))
                 )
             )
             rank += 1
 
-    # for debugging
+    ## for debugging purposes if i want to use num_processes = 1
     #envs = []
     #rank = 0
     #envs.append(make_env(
@@ -136,7 +144,7 @@ def make_vec_envs(env_name, seed, num_processes, gamma, no_norm, num_stack,
     #    add_timestep, 
     #    allow_early_resets, 
     #    start_pos=0, 
-    #    opponent_actor=None
+    #    opponent_actor=pretrained_model.load_pretrained(train=False)
     #    ))
  
     print(f"len(envs)={len(envs)}")
