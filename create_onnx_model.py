@@ -17,23 +17,6 @@ ENV_ID = "GraphicOVOCompact-v0"
 ONNX_FILENAME = "second_stage_pommer_man.onnx"
 USE_CUDA = True
 
-if torch.cuda.is_available() and USE_CUDA:
-    device = torch.device("cuda")
-else:
-    device = torch.device("cpu")
-
-obs_space = Box(np.zeros(13440), np.ones(13440))
-action_space = Discrete(6)
-nn_kwargs = {
-    "batch_norm": True,
-    "recurrent": False,
-    "hidden_size": 512,
-    "cnn_config": "conv5",
-}
-actor_critic = Policy(
-    PommNet(obs_shape=obs_space.shape, **nn_kwargs).eval(), action_space=action_space
-)
-
 parser = argparse.ArgumentParser()
 parser.add_argument(
     "path",
@@ -46,12 +29,10 @@ parser.add_argument(
     help="name of resulting onnx file",
 )
 args = parser.parse_args()
-print('-------------\nLoading model:', args.path, '\n-------------')
 
-actor_critic.load_state_dict(torch.load(args.path)[0])
-actor_critic = actor_critic.to(device)
+actor_critic = pretrained_model.load_pretrained(train=False, path=args.path)
 
-input = torch.zeros((5, 56, 48)).to(device)
+input = torch.zeros((5, 56, 48))
 filename = ONNX_FILENAME if not args.name else args.name
 torch.onnx.export(
     actor_critic,
