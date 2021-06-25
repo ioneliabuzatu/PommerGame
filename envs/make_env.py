@@ -13,6 +13,7 @@ from helpers.vec_env.dummy_vec_env import DummyVecEnv
 from helpers.vec_env.subproc_vec_env import SubprocVecEnv
 from helpers.vec_env.vec_normalize import VecNormalize
 from envs.pommerman import PommermanEnvWrapper
+from helpers import pretrained_model
 
 try:
     import dm_control2gym
@@ -35,7 +36,7 @@ except ImportError:
     pass
 
 from graphic_pomme_env import graphic_pomme_env
-from graphic_pomme_env.wrappers import PommerEnvWrapperFrameSkip2
+from helpers.my_wrappers import PommerEnvWrapperFrameSkip2
 
 
 class RawObsEnvWrapper(gym.Wrapper):
@@ -60,27 +61,22 @@ class RawObsEnvWrapper(gym.Wrapper):
         return self.env.get_last_step_raw()
 
 
-def make_env(env_id, seed, rank, log_dir=None, add_timestep=False, allow_early_resets=False, random_position=0,
-             opponent=None):
-    def _thunk():
-        if random_position:
-            env = PommerEnvWrapperFrameSkip2(
-                num_stack=5, start_pos=np.random.choice([0, 1]), opponent_actor=opponent, board='GraphicOVOCompact-v0'
-            )
-            
-        else:
-            env = PommerEnvWrapperFrameSkip2(
-                num_stack=5, start_pos=0, opponent_actor=opponent, board='GraphicOVOCompact-v0'
-            )
-        
-        ########################
+def make_env(env_id, seed, rank, log_dir=None, add_timestep=False, allow_early_resets=False, start_pos=0, opponent_actor=None):
+
+    # Had to put the following outside of the _thunk() function, otherwise
+    # it always created the same environment for all environments
+    # Generate random environment Settings
+    num_rigid = np.random.randint(1, high=5, size=None, dtype=int) * 2 # need even numbers for rigid tiles
+    num_wood = np.random.randint(3, high=5, size=None, dtype=int) * 2 # need even numbers for wood tiles
+    num_items = np.random.randint(2, high=6, size=None, dtype=int)
+
+    def _thunk(num_rigid=num_rigid, num_wood=num_wood, num_items=num_items):
+        env = PommerEnvWrapperFrameSkip2(num_stack=5, start_pos=start_pos, opponent_actor=opponent_actor, board='GraphicOVOCompact-v0')
+
         # Generate random environment Settings
-        num_rigid = np.random.randint(1, high=5, size=None, dtype=int) * 2 # need even numbers for rigid tiles
-        num_wood = np.random.randint(3, high=5, size=None, dtype=int) * 2 # need even numbers for wood tiles
-        num_items = np.random.randint(1, high=6, size=None, dtype=int)
+        print(f"num_rigid={num_rigid}, num_wood={num_wood}, num_items={num_items}")
         env.set_board_params(num_rigid=num_rigid, num_wood=num_wood, num_items=num_items) 
-        #########################
-            
+
         # hacky af
         obs, opp_obs = env.reset()
         env.training_agent = 0
@@ -115,10 +111,43 @@ def make_env(env_id, seed, rank, log_dir=None, add_timestep=False, allow_early_r
 
 
 def make_vec_envs(env_name, seed, num_processes, gamma, no_norm, num_stack,
-                  log_dir=None, add_timestep=False, device='cpu', allow_early_resets=False, eval=False,
-                  random_start_position=False, opponent=None):
-    envs = [make_env(env_name, seed, i, log_dir, add_timestep, allow_early_resets, random_start_position, opponent) for i in
-            range(num_processes)]
+                  log_dir=None, add_timestep=False, device='cpu', allow_early_resets=False, eval=False):
+
+    assert num_processes>=4, "Please set num_processes>=4 in config, otherwise not enough environments are created"
+    envs = []
+    rank = 0
+    for opp in ['simple', 'stage1']:
+        for start_pos in [0,1] * int(num_processes/4):
+            print(f"start_pos: {start_pos}, opponent: {opp}")
+
+            envs.append(make_env(
+                env_name, 
+                seed, 
+                rank, 
+                log_dir, 
+                add_timestep, 
+                allow_early_resets, 
+                start_pos=start_pos, 
+                opponent_actor=(None if opp=='simple' else pretrained_model.load_pretrained(train=False))
+                )
+            )
+            rank += 1
+
+    ## for debugging purposes if i want to use num_processes = 1
+    #envs = []
+    #rank = 0
+    #envs.append(make_env(
+    #    env_name, 
+    #    seed, 
+    #    rank, 
+    #    log_dir, 
+    #    add_timestep, 
+    #    allow_early_resets, 
+    #    start_pos=0, 
+    #    opponent_actor=pretrained_model.load_pretrained(train=False)
+    #    ))
+ 
+    print(f"len(envs)={len(envs)}")
 
     if len(envs) > 1:
         envs = SubprocVecEnv(envs)
@@ -146,6 +175,7 @@ def make_vec_envs(env_name, seed, num_processes, gamma, no_norm, num_stack,
 
     if num_stack > 1:
         envs = VecPyTorchFrameStack(envs, num_stack, device)
+    
 
     return envs
 
@@ -194,10 +224,10 @@ class VecPyTorch(VecEnvWrapper):
         self.venv.step_async(actions)
 
     def step_wait(self):
-        obs, reward, done, info = self.venv.step_wait()
+        obs, reward, done, info, blast_str, ammo = self.venv.step_wait()
         obs = torch.from_numpy(obs).float().to(self.device)
         reward = torch.from_numpy(np.expand_dims(np.stack(reward), 1)).float()
-        return obs, reward, done, info
+        return obs, reward, done, info, blast_str, ammo
 
 
 # Derived from

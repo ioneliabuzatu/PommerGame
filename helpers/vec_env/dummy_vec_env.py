@@ -15,6 +15,8 @@ class DummyVecEnv(VecEnv):
         self.buf_dones = np.zeros((self.num_envs,), dtype=np.bool)
         self.buf_rews  = np.zeros((self.num_envs,), dtype=np.float32)
         self.buf_infos = [{} for _ in range(self.num_envs)]
+        self.buf_blast  = np.zeros((self.num_envs,), dtype=np.int32)
+        self.buf_ammo  = np.zeros((self.num_envs,), dtype=np.int32)
         self.actions = None
 
     def step_async(self, actions):
@@ -37,12 +39,12 @@ class DummyVecEnv(VecEnv):
             if isinstance(self.envs[e].action_space, spaces.Discrete):
                 action = int(action)
 
-            obs, self.buf_rews[e], self.buf_dones[e], self.buf_infos[e] = self.envs[e].step(action)
+            obs, self.buf_rews[e], self.buf_dones[e], self.buf_infos[e], self.buf_blast[e], self.buf_ammo[e] = self.envs[e].step(action)
             if self.buf_dones[e]:
                 obs = self.envs[e].reset()
             self._save_obs(e, obs)
         return (self._obs_from_buf(), np.copy(self.buf_rews), np.copy(self.buf_dones),
-                self.buf_infos.copy())
+                self.buf_infos.copy(), self.buf_blast.copy(), self.buf_ammo.copy())
 
     def reset(self):
         for e in range(self.num_envs):
