@@ -74,8 +74,6 @@ if __name__ == "__main__":
             opponent_obs, _, _, _ = opponent_step
             n_steps += 1
             if n_steps > 800:
-                print("Draw")
-                draw_count += 1
                 r = 0
                 break
 
@@ -85,6 +83,9 @@ if __name__ == "__main__":
         elif r < 0:
             print("Loss")
             win_count_opponent += 1
+        else:
+            print("Draw")
+            draw_count += 1
 
     #print(f"Win ratio of agent: {win_count_player/N_EPISODES}")
     #print(f"Win ratio of opponent: {win_count_opponent / N_EPISODES}")

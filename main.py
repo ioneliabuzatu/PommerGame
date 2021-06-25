@@ -53,10 +53,7 @@ def main():
     torch.set_num_threads(1)
     device = torch.device("cuda:0" if config.cuda else "cpu")
     print(f"Training model on device [{device}] starting now...")
-    if config.USE_BUDDY:
-        tensorboard = config.tensorboard
-    else:
-        tensorboard = SummaryWriter("results")
+    tensorboard = SummaryWriter("results")
 
     tensorboard_x_data_points_counts = 0
 
@@ -194,18 +191,28 @@ def main():
                 #####################################
                 # give reward for collecting power-up
                 idx_blast_incr = blast_str > last_blast_str
-                if idx_blast_incr.sum():
-                    print(" > Hooray! Blast Strength increased!")
                 reward[idx_blast_incr] += 0.5
                 last_blast_str = blast_str
+                #if idx_blast_incr.sum():
+                #    print(" > Hooray! Blast Strength increased!")
+                #    print(last_blast_str.flatten())
 
                 ####################################
                 # give reward for collecting ammo-up
                 idx_ammo_incr = ammo > last_max_ammo
-                if idx_ammo_incr.sum():
-                    print(" > Hooray! Ammo increased!")
                 reward[idx_ammo_incr] += 0.5
                 last_max_ammo[idx_ammo_incr] = ammo[idx_ammo_incr]
+                #if idx_ammo_incr.sum():
+                #    print(" > Hooray! Ammo increased!")
+                #    print(last_max_ammo.flatten())
+
+                ##############
+                # punish draws
+                idx_draw = torch.as_tensor(done)[:,None] * (reward == 0)
+                reward[idx_draw] -= 0.1
+
+                if done.sum():
+                    print("rewards of finished games:", reward[done].flatten())
 
                 ########################################
                 ## punish not laying bombs for too long
@@ -216,11 +223,7 @@ def main():
 
                 #######################################
                 # small random reward for placing bombs
-                reward[action == 5] += np.random.choice((0.1,0), p=(0.1, 0.9))
-
-                ###############
-                ## Punish draws
-                #reward[done * (times_since_done>=800)] -= 0.5
+                reward[action == 5] += np.random.choice((0.05,0), p=(0.1, 0.9))
 
                 #############################################
                 ## punish repeating patterns (leads to draws) - very experimental
@@ -266,6 +269,8 @@ def main():
                 times_since_bomb[action == 5] = 0
                 times_since_done += 1
                 times_since_done[done] = 0
+                last_blast_str[done] = 2
+                last_max_ammo[done] = 1
 
             with torch.no_grad():
                 next_value = actor_critic.get_value(
