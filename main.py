@@ -23,7 +23,7 @@ from helpers import pretrained_model
 
 update_factor = config.num_steps * config.num_processes
 # num_updates = int(config.num_frames) // update_factor
-num_updates = 5000
+num_updates = 10000
 lr_update_schedule = (
     None if config.lr_schedule is None else config.lr_schedule // update_factor
 )
@@ -214,9 +214,9 @@ def main():
                 ##if idx_nobomb_thr.sum():
                 ##    print(" > Punishing passive behaviour...")
 
-                ########################################
-                ## small random reward for placing bombs
-                #reward[action == 5] += 0.05
+                #######################################
+                # small random reward for placing bombs
+                reward[action == 5] += np.random.choice((0.1,0), p=(0.1, 0.9))
 
                 ###############
                 ## Punish draws
