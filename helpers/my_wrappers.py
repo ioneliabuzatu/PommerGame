@@ -3,7 +3,6 @@ import numpy as np
 from pommerman import make
 from pommerman.agents import RandomAgent, SimpleAgent
 import torch
-import config
 
 # FrameStack implementation
 # leaned on https://github.com/openai/gym/blob/master/gym/wrappers/frame_stack.py
