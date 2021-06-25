@@ -176,7 +176,6 @@ class PommerEnvWrapperFrameSkip2():
                     raw_obs_list[1 - self.cur_start_pos],
                     NUM_ACTIONS)  # for SimpleAgent
             else:
-                raw_obs_list = self.env.get_last_step_raw()
                 oppon_frame_stack = self.oppon_frame_stack_odd if self.next_is_even else self.oppon_frame_stack_even
                 oppon_state = oppon_frame_stack.get_observation()
                 oppon_state = torch.from_numpy(np.array(oppon_state)).float()

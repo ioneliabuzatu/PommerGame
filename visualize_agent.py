@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 import torch
+from helpers import pretrained_model
 
 from graphic_pomme_env import graphic_pomme_env
 from helpers.my_wrappers import PommerEnvWrapperFrameSkip2
@@ -137,20 +138,11 @@ if __name__ == "__main__":
     args = parser.parse_args()
     print('-------------\nLoading model:', args.path, '\n-------------')
 
-    obs_space = Box(np.zeros(13440), np.ones(13440))
-    action_space = Discrete(6)
-    nn_kwargs = {'batch_norm': True, 'recurrent': False, 'hidden_size': 512, 'cnn_config': 'conv5', }
-    actor_critic = Policy(PommNet(obs_shape=obs_space.shape, **nn_kwargs).eval(), action_space=action_space)
-
-    actor_critic.load_state_dict(torch.load(args.path)[0])
-    actor_critic = actor_critic
+    actor_critic = pretrained_model.load_pretrained(train=False, path=args.path)
 
     if args.opponent:
         print('-------------\nLoading opponent:', args.opponent, '\n-------------')
-        opponent_actor = Policy(PommNet(obs_shape=obs_space.shape, **nn_kwargs).eval(), action_space=action_space)
-
-        opponent_actor.load_state_dict(torch.load(args.opponent)[0])
-        opponent_actor = opponent_actor
+        opponent_actor = pretrained_model.load_pretrained(train=False, path=args.opponent)
     else:
         opponent_actor = None
 
