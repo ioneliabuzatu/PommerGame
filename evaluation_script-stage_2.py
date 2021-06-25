@@ -5,6 +5,7 @@ from onnx2pytorch import ConvertModel
 import argparse
 from gym import logger as gymlogger
 import os
+
 gymlogger.set_level(40)  # error only
 #os.system("git clone https://github.com/MultiAgentLearning/playground ./pommer_setup")
 #os.system("pip install -U ./pommer_setup")
@@ -23,8 +24,10 @@ if __name__ == "__main__":
     N_EPISODES = 100
 
     parser = argparse.ArgumentParser()
+
     parser.add_argument("--agent", type=str, help="Path to onnx model of agent")
     parser.add_argument("--opponent", type=str, help="Path to onnx model of opponent")
+
     args = parser.parse_args()
     model_file = args.agent
     opponent_file = args.opponent
@@ -51,6 +54,7 @@ if __name__ == "__main__":
         else:
             start_pos = 0
         env = PommerEnvWrapperFrameSkip2(num_stack=5, start_pos=start_pos, board='GraphicOVOCompact-v0')
+
         done = False
         obs, opponent_obs = env.reset()
         observations = []
@@ -90,3 +94,4 @@ if __name__ == "__main__":
     #print(f"Win ratio of agent: {win_count_player/N_EPISODES}")
     #print(f"Win ratio of opponent: {win_count_opponent / N_EPISODES}")
     print(f"Agent ({model_file}) had {win_count_player} wins, {draw_count} draws and {win_count_opponent} losses against the opponent ({opponent_file})")
+

@@ -49,7 +49,7 @@ except OSError:
         os.remove(f)
 
 
-def main():
+def train(opponent=None, checkpoint_path="checkpoints/stage_2.pt"):
     torch.set_num_threads(1)
     device = torch.device("cuda:0" if config.cuda else "cpu")
     print(f"Training model on device [{device}] starting now...")
@@ -371,4 +371,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    train()

@@ -27,6 +27,9 @@ log_dir = '/tmp/gym/'
 save_dir = './checkpoints/'
 add_timestep = False  # add time_step to observations
 recurrent_policy = False
-no_norm = True  # disables normalization, no reward shaping
+no_norm = True  # no normalization, no reward shaping
 cuda = use_cuda and torch.cuda.is_available()
+opponent_actor = None
+starting_board_position = 0
+random_start_position = False
 
