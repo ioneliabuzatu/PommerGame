@@ -50,7 +50,7 @@ def play(model, opponent_actor=None):
             num_stack=5, start_pos=start_pos, board="GraphicOVOCompact-v0", opponent_actor=opponent_actor
         )
 
-        for i_episode in range(10):
+        for i_episode in range(3):
             obs, _ = env.reset()
             done = False
 
