@@ -48,8 +48,17 @@ except OSError:
     for f in files:
         os.remove(f)
 
+
 VALUE_DICT = {'rigid':1, 'wood':2, 'bomb_incr':6, 
     'flame_incr':7, 'flame':4, 'bomb':3}
+
+REWARD_FLAME_INC = 0.3
+REWARD_BOMB_INC = 0.3
+REWARD_MV_TO_OPP = 0.01
+REWARD_BOMB_WOOD = 0.1
+REWARD_BOMB_BESIDES = 0.05
+REWARD_BOMB_DIAGONAL = 0.01
+PUNISH_BOMB_NO_AMMO = -0.1
 
 def train(opponent=None, checkpoint_path="checkpoints/stage_2.pt"):
     torch.set_num_threads(1)
@@ -194,9 +203,14 @@ def train(opponent=None, checkpoint_path="checkpoints/stage_2.pt"):
                 # blast strength, item positions, agent/opponent positions,...
                 # this may be helpful in creating rewards for specific events!
 
+                not_done = torch.from_numpy(~done)
+
                 # merge list of dicts into dict of lists
                 old_env_info = {k: [dic[k] for dic in old_env_info] for k in old_env_info[0]}
                 new_env_info = {k: [dic[k] for dic in new_env_info] for k in new_env_info[0]}
+
+                # get current ammo
+                ammo = torch.as_tensor(old_env_info['ammo'])
 
                 # mark agents position on board with value 111 and opponent 
                 # position with 222
@@ -240,59 +254,70 @@ def train(opponent=None, checkpoint_path="checkpoints/stage_2.pt"):
                 # give reward when placing bombs directly besides opponent
                 # and give smaller reward when placing bombs diagonally adjacent to opponent
                 idx = (action.cpu() == 5).squeeze()
-                r1 = 0.3 * (pos_old['dist_opp'][idx]==1)[:,None] * (~done)[idx,None]
+                is_besides = torch.isclose(pos_old['dist_opp'][idx], torch.tensor(1.))
+                is_diagonal = (pos_old['dist_opp'][idx]<2.) * (~is_besides)
+
+                r1 = REWARD_BOMB_BESIDES * (is_besides)[:,None] * not_done[idx,None]
                 reward[idx] += r1
-                r2 = 0.15 * (pos_old['dist_opp'][idx]<2)[:,None] * (~done)[idx,None]
+                r2 = REWARD_BOMB_DIAGONAL * (is_diagonal)[:,None] * not_done[idx,None]
                 reward[idx] += r2
 
                 if args.debug and idx[0] and r1[0]:
-                    print(" -> 0.3 reward for placing bomb directly beside opponent!")
+                    print(" -> reward for placing bomb directly beside opponent!")
 
                 if args.debug and idx[0] and r2[0]:
-                    print(" -> 0.15 reward for placing bomb diagonally beside opponent!")
+                    print(" -> reward for placing bomb diagonally beside opponent!")
 
                 ##############################################
                 # give small reward for going towards opponent
                 idx = (pos_old['dist_opp'] > dist_opp_old_agent_new)
-                reward[idx] += 0.05 * torch.from_numpy(~done)[idx,None]
+                reward[idx] += REWARD_MV_TO_OPP * not_done[idx,None]
 
                 if args.debug and idx[0]:
-                    print(" -> 0.05 reward for TRYING TO move towards opponent!")
+                    print(" -> reward for TRYING TO move towards opponent!")
+
+                ###########################################
+                # punish trying to lay bombs when ammo is 0
+                idx = (ammo == 0) * (action.cpu()==5).squeeze()
+                reward[idx] += PUNISH_BOMB_NO_AMMO * not_done[idx, None]
+
+                if args.debug and idx[0]:
+                    print(" -> punishment for trying to lay bomb without ammo!")
 
                 ###########################################
                 # give reward for placing bomb becides wood
                 dist_wood = [((pos_old['agent'][i]-w).abs()**2).sum(1).sqrt() for i, w in enumerate(pos_old['wood'])]
                 num_wood_beside = torch.as_tensor([(el==1).sum() for el in dist_wood])
-                idx = (num_wood_beside>=1)[:,None] * (action.cpu()==5)
-                reward[idx] += 0.25 * torch.from_numpy(~done)[idx.squeeze()]
+                idx = (num_wood_beside>=1) * (action.cpu()==5).squeeze() * (ammo>0)
+                reward[idx] += REWARD_BOMB_WOOD * not_done[idx, None]
 
                 if args.debug and idx[0]:
-                    print(" -> 0.25 reward for placing bomb beside wood!")
+                    print(" -> reward for placing bomb beside wood!")
 
                 #################################
                 # give reward for getting an item
                 for k, (pos_a, pos_b, pos_f) in enumerate(zip(pos_new['agent'], pos_old['bomb_incr'], pos_old['flame_incr'])):
                     for p_b in pos_b:
-                        r = (pos_a == p_b).all().item() * 0.5 * (~done)[k]
+                        r = (pos_a == p_b).all().item() * REWARD_BOMB_INC * not_done[k]
                         reward[k,0] += r
                         if args.debug and k==0 and r:
-                            print(" -> 0.5 bomb increase item!")
+                            print(" -> reward for getting bomb increase item!")
                     for p_f in pos_f:
-                        r = (pos_a == p_f).all().item() * 0.5 * (~done)[k]
+                        r = (pos_a == p_f).all().item() * REWARD_FLAME_INC * not_done[k]
                         reward[k,0] += r
                         if args.debug and k==0 and r:
-                            print(" > Got flame increase item!")
+                            print(" > reward for getting flame increase item!")
  
 
                 ##############################################
                 ## Debugging: follow what happens on the board
                 if args.debug:
-                    k=0
-                    print("\nold board:\n",old_env_info['board'][k],
-                            "\n\nnew board:\n",new_env_info['board'][k],"\n\naction:", 
-                            action[k].cpu().item(),"\nreward", reward[k].item())
-                    time.sleep(2)
+                    print("\nold board:\n",old_env_info['board'][0],
+                            "\n\nnew board:\n",new_env_info['board'][0],"\n\naction =", 
+                            action[0].cpu().item(), ", ammo =", ammo[0].item(),
+                            "\nreward", reward[0].item())
                     print("--------------------------------------------")
+                    #time.sleep(2)
 
                 ###############
                 ## punish draws
