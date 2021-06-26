@@ -50,15 +50,16 @@ except OSError:
 
 
 VALUE_DICT = {'rigid':1, 'wood':2, 'bomb_incr':6, 
-    'flame_incr':7, 'flame':4, 'bomb':3}
+        'flame_incr':7, 'kick':8, 'flame':4, 'bomb':3}
 
-REWARD_FLAME_INC = 0.3
-REWARD_BOMB_INC = 0.3
+REWARD_FLAME_INC = 0.5
+REWARD_BOMB_INC = 0.5
+REWARD_KICK = 0.5
+REWARD_BOMB_WOOD = 0.2
+REWARD_BOMB_BESIDES = 0.1
+REWARD_BOMB_DIAGONAL = 0.05
 REWARD_MV_TO_OPP = 0.01
-REWARD_BOMB_WOOD = 0.1
-REWARD_BOMB_BESIDES = 0.05
-REWARD_BOMB_DIAGONAL = 0.01
-PUNISH_BOMB_NO_AMMO = -0.1
+PUNISH_BOMB_NO_AMMO = -0.005
 
 def train(opponent=None, checkpoint_path="checkpoints/stage_2.pt"):
     torch.set_num_threads(1)
@@ -296,7 +297,7 @@ def train(opponent=None, checkpoint_path="checkpoints/stage_2.pt"):
 
                 #################################
                 # give reward for getting an item
-                for k, (pos_a, pos_b, pos_f) in enumerate(zip(pos_new['agent'], pos_old['bomb_incr'], pos_old['flame_incr'])):
+                for k, (pos_a, pos_b, pos_f, pos_k) in enumerate(zip(pos_new['agent'], pos_old['bomb_incr'], pos_old['flame_incr'], pos_old['kick'])):
                     for p_b in pos_b:
                         r = (pos_a == p_b).all().item() * REWARD_BOMB_INC * not_done[k]
                         reward[k,0] += r
@@ -307,10 +308,20 @@ def train(opponent=None, checkpoint_path="checkpoints/stage_2.pt"):
                         reward[k,0] += r
                         if args.debug and k==0 and r:
                             print(" > reward for getting flame increase item!")
+                    for p_k in pos_k:
+                        r = (pos_a == p_k).all().item() * REWARD_KICK * not_done[k]
+                        reward[k,0] += r
+                        if args.debug and k==0 and r:
+                            print(" > reward for getting kick item!")
  
+ 
+                ###############
+                ## punish draws
+                #idx_draw = torch.as_tensor(done)[:,None] * (reward == 0)
+                #reward[idx_draw] -= 0.1
 
-                ##############################################
-                ## Debugging: follow what happens on the board
+                #############################################
+                # Debugging: follow what happens on the board
                 if args.debug:
                     print("\nold board:\n",old_env_info['board'][0],
                             "\n\nnew board:\n",new_env_info['board'][0],"\n\naction =", 
@@ -318,11 +329,6 @@ def train(opponent=None, checkpoint_path="checkpoints/stage_2.pt"):
                             "\nreward", reward[0].item())
                     print("--------------------------------------------")
                     #time.sleep(2)
-
-                ###############
-                ## punish draws
-                #idx_draw = torch.as_tensor(done)[:,None] * (reward == 0)
-                #reward[idx_draw] -= 0.1
 
                 if args.debug and done[0]:
                     print("############\nGame finished. Last reward:", reward[done].flatten(), "\n############")
