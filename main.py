@@ -48,6 +48,8 @@ except OSError:
     for f in files:
         os.remove(f)
 
+VALUE_DICT = {'rigid':1, 'wood':2, 'bomb_incr':6, 
+    'flame_incr':7, 'flame':4, 'bomb':3}
 
 def main():
     torch.set_num_threads(1)
@@ -64,6 +66,11 @@ def main():
         "--path",
         type=str,
         help="path to .pt file",
+    )
+    parser.add_argument(
+        "--debug",
+        help="Debug mode for exactly following what's happening in an environment",
+        action="store_true",
     )
     args = parser.parse_args()
     start_update = 0
@@ -159,10 +166,6 @@ def main():
         episode_rewards = deque(maxlen=10)
 
         start = time.time()
-        times_since_bomb = torch.zeros((config.num_processes, 1), dtype=torch.int32)
-        times_since_done = torch.zeros((config.num_processes, 1), dtype=torch.int32)
-        last_blast_str = torch.zeros((config.num_processes, 1), dtype=torch.int32) + 2
-        last_max_ammo = torch.ones((config.num_processes, 1), dtype=torch.int32)
         for j in range(start_update, start_update + num_updates):
             for step in range(config.num_steps):
                 # Sample actions
@@ -179,76 +182,129 @@ def main():
                     )
 
                 # Obser reward and next obs
-                obs, reward, done, infos, blast_str, ammo = envs.step(action)
+                obs, reward, done, infos, old_env_info, new_env_info = envs.step(action)
+
+                # env_info is a dict with the following keys:
+                # 'alive', 'board', 'bomb_blast_strength', 'bomb_life', 
+                # 'bomb_moving_direction', 'flame_life', 'game_type', 'game_env', 
+                # 'position', 'blast_strength', 'can_kick', 'teammate', 'ammo', 
+                # 'enemies', 'step_count', 'my_sprite'
+
+                # from this we can get all kind of information:
+                # blast strength, item positions, agent/opponent positions,...
+                # this may be helpful in creating rewards for specific events!
+
+                # merge list of dicts into dict of lists
+                old_env_info = {k: [dic[k] for dic in old_env_info] for k in old_env_info[0]}
+                new_env_info = {k: [dic[k] for dic in new_env_info] for k in new_env_info[0]}
+
+                # mark agents position on board with value 111 and opponent 
+                # position with 222
+                for board_old, board_new, enemy_val in zip(old_env_info['board'], new_env_info['board'], old_env_info['enemies']):
+                    agent_val = 10 if enemy_val[0].value==11 else 11
+                    board_old[board_old==agent_val] = 111
+                    board_old[board_old==enemy_val[0].value] = 222
+                    board_new[board_new==agent_val] = 111
+                    board_new[board_new==enemy_val[0].value] = 222
+
+                ##############################
+                # get positions of all objects
+                # really messy but i don't care anymore
+                pos_old = {key: [] for key in VALUE_DICT}
+                pos_new = {key: [] for key in VALUE_DICT}
+
+                pos_old['agent'] = torch.as_tensor(old_env_info['position'])
+                pos_old['oppon'] = torch.zeros_like(pos_old['agent'])
+                pos_new['agent'] = torch.as_tensor(new_env_info['position'])
+                pos_new['oppon'] = torch.zeros_like(pos_new['agent'])
+
+                for k, (b_old, b_new) in enumerate(zip(old_env_info['board'],new_env_info['board'])):
+                    b_old, b_new = torch.as_tensor(b_old, dtype=torch.int32), torch.as_tensor(b_new, dtype=torch.int32)
+                    if 222 in b_old:
+                        pos_old['oppon'][k,:] = torch.as_tensor(torch.where(b_old==222))
+                    if 222 in b_new:
+                        pos_new['oppon'][k,:] = torch.as_tensor(torch.where(b_new==222))
+
+                    for key in VALUE_DICT.keys():
+                        pos_old[key].append(torch.as_tensor(np.where(b_old==VALUE_DICT[key])).T)
+                        pos_new[key].append(torch.as_tensor(np.where(b_new==VALUE_DICT[key])).T)
+
+                # direct distance to opponent
+                # if dist_opp == 1, then the agent is right beside the opponent
+                # if dist_opp == sqrt(2), then the agent is diagonally adjacent
+                # if dist_opp > sqrt(2), then theres atleast 1 empty square between agent and opponent
+                pos_old['dist_opp'] = ((pos_old['oppon']-pos_old['agent']).abs()**2).sum(1).sqrt()
+                dist_opp_old_agent_new = ((pos_old['oppon']-pos_new['agent']).abs()**2).sum(1).sqrt()
+
+                ##########################################################
+                # give reward when placing bombs directly besides opponent
+                # and give smaller reward when placing bombs diagonally adjacent to opponent
+                idx = (action.cpu() == 5).squeeze()
+                r1 = 0.3 * (pos_old['dist_opp'][idx]==1)[:,None] * (~done)[idx,None]
+                reward[idx] += r1
+                r2 = 0.15 * (pos_old['dist_opp'][idx]<2)[:,None] * (~done)[idx,None]
+                reward[idx] += r2
+
+                if args.debug and idx[0] and r1[0]:
+                    print(" -> 0.3 reward for placing bomb directly beside opponent!")
+
+                if args.debug and idx[0] and r2[0]:
+                    print(" -> 0.15 reward for placing bomb diagonally beside opponent!")
+
+                ##############################################
+                # give small reward for going towards opponent
+                idx = (pos_old['dist_opp'] > dist_opp_old_agent_new)
+                reward[idx] += 0.05 * torch.from_numpy(~done)[idx,None]
+
+                if args.debug and idx[0]:
+                    print(" -> 0.05 reward for TRYING TO move towards opponent!")
+
+                ###########################################
+                # give reward for placing bomb becides wood
+                dist_wood = [((pos_old['agent'][i]-w).abs()**2).sum(1).sqrt() for i, w in enumerate(pos_old['wood'])]
+                num_wood_beside = torch.as_tensor([(el==1).sum() for el in dist_wood])
+                idx = (num_wood_beside>=1)[:,None] * (action.cpu()==5)
+                reward[idx] += 0.25 * torch.from_numpy(~done)[idx.squeeze()]
+
+                if args.debug and idx[0]:
+                    print(" -> 0.25 reward for placing bomb beside wood!")
+
+                #################################
+                # give reward for getting an item
+                for k, (pos_a, pos_b, pos_f) in enumerate(zip(pos_new['agent'], pos_old['bomb_incr'], pos_old['flame_incr'])):
+                    for p_b in pos_b:
+                        r = (pos_a == p_b).all().item() * 0.5 * (~done)[k]
+                        reward[k,0] += r
+                        if args.debug and k==0 and r:
+                            print(" -> 0.5 bomb increase item!")
+                    for p_f in pos_f:
+                        r = (pos_a == p_f).all().item() * 0.5 * (~done)[k]
+                        reward[k,0] += r
+                        if args.debug and k==0 and r:
+                            print(" > Got flame increase item!")
+ 
+
+                ##############################################
+                ## Debugging: follow what happens on the board
+                if args.debug:
+                    k=0
+                    print("\nold board:\n",old_env_info['board'][k],
+                            "\n\nnew board:\n",new_env_info['board'][k],"\n\naction:", 
+                            action[k].cpu().item(),"\nreward", reward[k].item())
+                    time.sleep(2)
+                    print("--------------------------------------------")
+
+                ###############
+                ## punish draws
+                #idx_draw = torch.as_tensor(done)[:,None] * (reward == 0)
+                #reward[idx_draw] -= 0.1
+
+                if args.debug and done[0]:
+                    print("############\nGame finished. Last reward:", reward[done].flatten(), "\n############")
 
                 for info in infos:
                     if "episode" in info.keys():
                         episode_rewards.append(info["episode"]["r"])
-
-                blast_str = torch.as_tensor(blast_str, dtype=torch.int32)[:, None]
-                ammo = torch.as_tensor(ammo, dtype=torch.int32)[:, None]
-
-                #####################################
-                # give reward for collecting power-up
-                idx_blast_incr = blast_str > last_blast_str
-                reward[idx_blast_incr] += 0.5
-                last_blast_str = blast_str
-                #if idx_blast_incr.sum():
-                #    print(" > Hooray! Blast Strength increased!")
-                #    print(last_blast_str.flatten())
-
-                ####################################
-                # give reward for collecting ammo-up
-                idx_ammo_incr = ammo > last_max_ammo
-                reward[idx_ammo_incr] += 0.5
-                last_max_ammo[idx_ammo_incr] = ammo[idx_ammo_incr]
-                #if idx_ammo_incr.sum():
-                #    print(" > Hooray! Ammo increased!")
-                #    print(last_max_ammo.flatten())
-
-                ##############
-                # punish draws
-                idx_draw = torch.as_tensor(done)[:,None] * (reward == 0)
-                reward[idx_draw] -= 0.1
-
-                if done.sum():
-                    print("rewards of finished games:", reward[done].flatten())
-
-                ########################################
-                ## punish not laying bombs for too long
-                #idx_nobomb_thr = times_since_bomb >= 25
-                #reward[idx_nobomb_thr] -= 0.1
-                ##if idx_nobomb_thr.sum():
-                ##    print(" > Punishing passive behaviour...")
-
-                #######################################
-                # small random reward for placing bombs
-                reward[action == 5] += np.random.choice((0.05,0), p=(0.1, 0.9))
-
-                #############################################
-                ## punish repeating patterns (leads to draws) - very experimental
-                #act_buf = rollouts.actions.squeeze()
-                #pattern_len = 4
-                #num_occ = 1
-
-                #assert (
-                #    pattern_len * (num_occ + 1) <= config.num_steps
-                #), "Increase config.num_steps!"
-                #patterns = act_buf[-pattern_len:, :]
-                #history = act_buf[:-pattern_len, :]
-
-                #z = [[(patterns[:, j] == history[i : (i + patterns.shape[0]), j]).all()
-                #        for i in range(history.shape[0] - patterns.shape[0])] 
-                #        for j in range(act_buf.shape[1])]
-
-                #z = torch.as_tensor(z)
-
-                #idx_repeats = (z.sum(1) >= num_occ)[:, None] * (
-                #    times_since_done >= pattern_len * 3
-                #)
-                #if idx_repeats.sum():
-                #    print(" > Punishing repeating behaviour...")
-                #reward[idx_repeats] -= 0.1
 
                 ################################################
                 # If done then clean the history of observations
@@ -264,13 +320,6 @@ def main():
                     reward,
                     masks,
                 )
-
-                times_since_bomb += 1
-                times_since_bomb[action == 5] = 0
-                times_since_done += 1
-                times_since_done[done] = 0
-                last_blast_str[done] = 2
-                last_max_ammo[done] = 1
 
             with torch.no_grad():
                 next_value = actor_critic.get_value(

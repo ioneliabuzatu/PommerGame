@@ -11,10 +11,10 @@ def worker(remote, parent_remote, env_fn_wrapper):
         while True:
             cmd, data = remote.recv()
             if cmd == 'step':
-                ob, reward, done, info, blast_str, ammo = env.step(data)
+                ob, reward, done, info, old_end_info, new_env_info = env.step(data)
                 if done:
                     ob = env.reset()
-                remote.send((ob, reward, done, info, blast_str, ammo))
+                remote.send((ob, reward, done, info, old_end_info, new_env_info))
             elif cmd == 'reset':
                 ob = env.reset()
                 remote.send(ob)
@@ -63,8 +63,8 @@ class SubprocVecEnv(VecEnv):
     def step_wait(self):
         results = [remote.recv() for remote in self.remotes]
         self.waiting = False
-        obs, rews, dones, infos, blast_str, ammo = zip(*results)
-        return np.stack(obs), np.stack(rews), np.stack(dones), infos, blast_str, ammo
+        obs, rews, dones, infos, old_end_info, new_env_info = zip(*results)
+        return np.stack(obs), np.stack(rews), np.stack(dones), infos, old_end_info, new_env_info
 
     def reset(self):
         for remote in self.remotes:

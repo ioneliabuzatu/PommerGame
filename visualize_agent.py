@@ -50,7 +50,7 @@ def play(model, opponent_actor=None):
             num_stack=5, start_pos=start_pos, board="GraphicOVOCompact-v0", opponent_actor=opponent_actor
         )
 
-        for i_episode in range(3):
+        for i_episode in range(10):
             obs, _ = env.reset()
             done = False
 
@@ -59,23 +59,13 @@ def play(model, opponent_actor=None):
             renders_img.append(rgb_img)
             k = 0
 
-            last_blast_str = 2
-            last_max_ammo = 1 
             while not done:
                 k += 1
                 net_out = model(torch.tensor(obs).float())
                 action = net_out.argmax(1).item()
 
-                agent_step, opponent_step, blast_str, ammo = env.step(action)
+                agent_step, opponent_step, _, _ = env.step(action)
                 obs, r, done, info = agent_step
-
-                if blast_str > last_blast_str:
-                    print(" > Hooray! Blast Strength increased!")
-                    last_blast_str = blast_str 
-
-                if ammo > last_max_ammo:
-                    print(" > Hooray! Ammo increased!")
-                    last_max_ammo = ammo
 
                 rgb_img = np.array(env.get_rgb_img())
                 renders_img.append(rgb_img)
