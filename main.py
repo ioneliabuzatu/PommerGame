@@ -343,7 +343,7 @@ def train(opponent=None, checkpoint_path="checkpoints/stage_2.pt"):
                 ]
 
                 torch.save(
-                    save_model, os.path.join(save_path, config.env_name + "_recurrent_and_bombing.pt")
+                    save_model, os.path.join(save_path, config.env_name + "_lukas.pt")
                 )
 
             total_num_steps = (j + 1) * update_factor
