@@ -76,7 +76,8 @@ def train(opponent=None, checkpoint_path="checkpoints/stage_2.pt"):
 
     actor_critic = Policy(nn, action_space=envs.action_space)
     state_dict, _ = torch.load(checkpoint_path)
-    actor_critic.load_state_dict(state_dict)
+    if config.use_pretrained:
+        actor_critic.load_state_dict(state_dict)
     actor_critic.to(device)
 
     agent = src.A2C_ACKTR(
@@ -138,7 +139,7 @@ def train(opponent=None, checkpoint_path="checkpoints/stage_2.pt"):
             state_dict = actor_critic.state_dict() if device.type == "cpu" else actor_critic.state_dict()
             save_model = [state_dict, hasattr(envs.venv, 'ob_rms') and envs.venv.ob_rms or None]
 
-            torch.save(save_model, os.path.join(save_path, "curriculum.pt"))
+            torch.save(save_model, os.path.join(save_path, "reward_redistribution.pt"))
 
         total_num_steps = (j + 1) * update_factor
 
