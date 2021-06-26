@@ -190,15 +190,12 @@ class PommerEnvWrapperFrameSkip2():
         else:
             action_list = [opponent_action, action]
 
+        old_env_info = self.env.observations[self.cur_start_pos]
+
         # get observations
         observation_list, reward_list, done, info = self.env.step(action_list)
 
-        if self.cur_start_pos == 0:
-            blast_str = self.env._agents[0].blast_strength
-            ammo = self.env._agents[0].ammo
-        else:
-            blast_str = self.env._agents[1].blast_strength
-            ammo = self.env._agents[1].ammo
+        new_env_info = self.env.observations[self.cur_start_pos]
 
         # for agent
         rgb_img = observation_list[self.cur_start_pos]
@@ -224,7 +221,7 @@ class PommerEnvWrapperFrameSkip2():
         opponent_ret = (
         oppon_obs_stack, reward_list[1 - self.cur_start_pos], done, info)
 
-        return agent_ret, opponent_ret, blast_str, ammo
+        return agent_ret, opponent_ret, old_env_info, new_env_info
 
     def reset(self, **kwargs):
         if self.env is None or self.start_pos == -1:

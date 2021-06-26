@@ -224,10 +224,10 @@ class VecPyTorch(VecEnvWrapper):
         self.venv.step_async(actions)
 
     def step_wait(self):
-        obs, reward, done, info, blast_str, ammo = self.venv.step_wait()
+        obs, reward, done, info, old_end_info, new_env_info = self.venv.step_wait()
         obs = torch.from_numpy(obs).float().to(self.device)
         reward = torch.from_numpy(np.expand_dims(np.stack(reward), 1)).float()
-        return obs, reward, done, info, blast_str, ammo
+        return obs, reward, done, info, old_end_info, new_env_info
 
 
 # Derived from
