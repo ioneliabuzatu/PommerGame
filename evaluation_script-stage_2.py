@@ -67,7 +67,7 @@ if __name__ == "__main__":
         while not done:
             obs = torch.from_numpy(np.array(obs)).float()
             if cuda:
-                obs.cuda()
+                obs = obs.cuda()
             observations.extend(obs.cpu().detach().numpy().astype(np.uint8))
             net_out = agent(obs).cpu().detach().numpy()
             action = np.argmax(net_out)
@@ -75,7 +75,7 @@ if __name__ == "__main__":
             if opponent_file is not None:
                 opponent_obs = torch.from_numpy(np.array(opponent_obs)).float()
                 if cuda:
-                    opponent_obs.cuda()
+                    opponent_obs = opponent_obs.cuda()
                 net_out = opponent(opponent_obs).cpu().detach().numpy()
                 opponent_action = np.argmax(net_out)
 
