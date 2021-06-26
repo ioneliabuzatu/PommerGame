@@ -79,8 +79,8 @@ def train(opponent=None, checkpoint_path="checkpoints/stage_2.pt"):
         obs_space = Box(np.zeros(13440), np.ones(13440), dtype=np.float32)
         action_space = Discrete(6)
         nn_kwargs = {
-            "batch_norm": True,
-            "recurrent": False,
+            "batch_norm": config.batch_norm,
+            "recurrent": config.recurrent_policy,
             "hidden_size": 512,
             "cnn_config": "conv5",
         }
