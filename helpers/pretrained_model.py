@@ -5,10 +5,10 @@ from src.models.policy import Policy
 import numpy as np
 import torch
 
-def load_pretrained(train=True, path=None, cuda=torch.cuda.is_available()):
+def load_pretrained(train=True, path=None, cuda=torch.cuda.is_available(), recurrent=False):
     obs_space = Box(np.zeros(13440), np.ones(13440), dtype=np.float32)
     action_space = Discrete(6)
-    nn_kwargs = {'batch_norm': True, 'recurrent': False, 'hidden_size': 512, 'cnn_config': 'conv5', }
+    nn_kwargs = {'batch_norm': True, 'recurrent': recurrent, 'hidden_size': 512, 'cnn_config': 'conv5', }
 
     if path is None:
         path = "./checkpoints/stage_2.pt"
