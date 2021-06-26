@@ -1,7 +1,11 @@
 import torch
+import experiment_buddy
+
 import torch.nn as nn
 
+USE_BUDDY = False
 use_cuda = True
+use_pretrained = False
 host = ""
 
 lr = 2.5e4
@@ -26,10 +30,18 @@ env_name = 'GraphicOVOCompact-v0'
 log_dir = '/tmp/gym/'
 save_dir = './checkpoints/'
 add_timestep = False  # add time_step to observations
-recurrent_policy = False
+recurrent_policy = True
 no_norm = True  # no normalization, no reward shaping
 cuda = use_cuda and torch.cuda.is_available()
 opponent_actor = None
 starting_board_position = 0
 random_start_position = False
 
+if USE_BUDDY:
+    experiment_buddy.register(locals())
+    tensorboard = experiment_buddy.deploy(
+        host,
+        sweep_yaml="",
+        proc_num=1,
+        wandb_kwargs={"entity": "ionelia"}
+    )

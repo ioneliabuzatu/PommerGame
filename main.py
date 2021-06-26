@@ -55,31 +55,26 @@ def train(opponent=None, checkpoint_path="checkpoints/stage_2.pt"):
     torch.set_num_threads(1)
     device = torch.device("cuda:0" if config.cuda else "cpu")
     print(f"Training model on device [{device}] starting now...")
-    tensorboard = SummaryWriter("results")
+    if config.USE_BUDDY:
+        tensorboard = config.tensorboard
+    else:
+        tensorboard = SummaryWriter("results")
 
     tensorboard_x_data_points_counts = 0
 
     print(f"Using {config.num_processes} processes")
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--path",
-        type=str,
-        help="path to .pt file",
-    )
-    parser.add_argument(
-        "--debug",
-        help="Debug mode for exactly following what's happening in an environment",
-        action="store_true",
-    )
-    args = parser.parse_args()
+    # parser = argparse.ArgumentParser()
+    # parser.add_argument( "--path", type=str, help="path to .pt file", )
+    # parser.add_argument( "--debug", help="Debug mode for exactly following what's happening in an environment", action="store_true", )
+    # args = parser.parse_args()
     start_update = 0
-    if args.path:
-        pattern = re.match(r".*GraphicOVOCompact-v0_(\d+).pt", args.path)
+    if config.use_pretrained:
+        pattern = re.match(r".*GraphicOVOCompact-v0_(\d+).pt", config.use_pretrained)
         if pattern:
             start_update = int(pattern.group(1))
 
-        actor_critic = pretrained_model.load_pretrained(train=True, path=args.path)
+        actor_critic = pretrained_model.load_pretrained(train=True, path=config.use_pretrained)
     else:
         obs_space = Box(np.zeros(13440), np.ones(13440), dtype=np.float32)
         action_space = Discrete(6)
