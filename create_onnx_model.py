@@ -14,7 +14,7 @@ N_game = 50
 NUM_ACTIONS = 6
 RENDER = False
 ENV_ID = "GraphicOVOCompact-v0"
-ONNX_FILENAME = "second_stage_pommer_man.onnx"
+ONNX_FILENAME = "rename_checkpoint_pommer_man.onnx"
 USE_CUDA = True
 
 parser = argparse.ArgumentParser()

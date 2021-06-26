@@ -19,6 +19,7 @@ from helpers.my_wrappers import PommerEnvWrapperFrameSkip2
 
 np.random.seed(147)
 torch.manual_seed(147)
+cuda =torch.cuda.is_available()
 
 if __name__ == "__main__":
     N_EPISODES = 100
@@ -34,12 +35,16 @@ if __name__ == "__main__":
 
     # Agent Network
     print("\n------------\nagent file: ", model_file, '\n------------\n')
-    agent = ConvertModel(onnx.load(model_file), experimental=True).cuda()
+    agent = ConvertModel(onnx.load(model_file), experimental=True)
+    if cuda:
+        agent.cuda()
     agent.eval()
     # Opponent Network
     if opponent_file is not None:
         print("\n------------\nopponent file: ", opponent_file, '\n------------\n')
-        opponent = ConvertModel(onnx.load(opponent_file), experimental=True).cuda()
+        opponent = ConvertModel(onnx.load(opponent_file), experimental=True)
+        if cuda:
+            opponent.cuda()
         opponent.eval()
     else:
         print("\n------------\nNo opponent given, using SimpleAgent()...\n------------\n")
@@ -60,13 +65,17 @@ if __name__ == "__main__":
         observations = []
         n_steps = 0
         while not done:
-            obs = torch.from_numpy(np.array(obs)).float().cuda()
+            obs = torch.from_numpy(np.array(obs)).float()
+            if cuda:
+                obs.cuda()
             observations.extend(obs.cpu().detach().numpy().astype(np.uint8))
             net_out = agent(obs).cpu().detach().numpy()
             action = np.argmax(net_out)
 
             if opponent_file is not None:
-                opponent_obs = torch.from_numpy(np.array(opponent_obs)).float().cuda()
+                opponent_obs = torch.from_numpy(np.array(opponent_obs)).float()
+                if cuda:
+                    opponent_obs.cuda()
                 net_out = opponent(opponent_obs).cpu().detach().numpy()
                 opponent_action = np.argmax(net_out)
 
