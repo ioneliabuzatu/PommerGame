@@ -240,19 +240,19 @@ def train(opponent=None, checkpoint_path="checkpoints/stage_2.pt"):
                 r2 = 0.15 * (pos_old['dist_opp'][idx]<2)[:,None] * (~done)[idx,None]
                 reward[idx] += r2
 
-                if args.debug and idx[0] and r1[0]:
-                    print(" -> 0.3 reward for placing bomb directly beside opponent!")
-
-                if args.debug and idx[0] and r2[0]:
-                    print(" -> 0.15 reward for placing bomb diagonally beside opponent!")
+                # if args.debug and idx[0] and r1[0]:
+                #     print(" -> 0.3 reward for placing bomb directly beside opponent!")
+                #
+                # if args.debug and idx[0] and r2[0]:
+                #     print(" -> 0.15 reward for placing bomb diagonally beside opponent!")
 
                 ##############################################
                 # give small reward for going towards opponent
                 idx = (pos_old['dist_opp'] > dist_opp_old_agent_new)
                 reward[idx] += 0.05 * torch.from_numpy(~done)[idx,None]
 
-                if args.debug and idx[0]:
-                    print(" -> 0.05 reward for TRYING TO move towards opponent!")
+                # if args.debug and idx[0]:
+                #     print(" -> 0.05 reward for TRYING TO move towards opponent!")
 
                 ###########################################
                 # give reward for placing bomb becides wood
@@ -261,8 +261,8 @@ def train(opponent=None, checkpoint_path="checkpoints/stage_2.pt"):
                 idx = (num_wood_beside>=1)[:,None] * (action.cpu()==5)
                 reward[idx] += 0.25 * torch.from_numpy(~done)[idx.squeeze()]
 
-                if args.debug and idx[0]:
-                    print(" -> 0.25 reward for placing bomb beside wood!")
+                # if args.debug and idx[0]:
+                #     print(" -> 0.25 reward for placing bomb beside wood!")
 
                 #################################
                 # give reward for getting an item
@@ -270,32 +270,32 @@ def train(opponent=None, checkpoint_path="checkpoints/stage_2.pt"):
                     for p_b in pos_b:
                         r = (pos_a == p_b).all().item() * 0.5 * (~done)[k]
                         reward[k,0] += r
-                        if args.debug and k==0 and r:
-                            print(" -> 0.5 bomb increase item!")
+                        # if args.debug and k==0 and r:
+                        #     print(" -> 0.5 bomb increase item!")
                     for p_f in pos_f:
                         r = (pos_a == p_f).all().item() * 0.5 * (~done)[k]
                         reward[k,0] += r
-                        if args.debug and k==0 and r:
-                            print(" > Got flame increase item!")
+                        # if args.debug and k==0 and r:
+                        #     print(" > Got flame increase item!")
  
 
                 ##############################################
                 ## Debugging: follow what happens on the board
-                if args.debug:
-                    k=0
-                    print("\nold board:\n",old_env_info['board'][k],
-                            "\n\nnew board:\n",new_env_info['board'][k],"\n\naction:", 
-                            action[k].cpu().item(),"\nreward", reward[k].item())
-                    time.sleep(2)
-                    print("--------------------------------------------")
+                # if args.debug:
+                #     k=0
+                #     print("\nold board:\n",old_env_info['board'][k],
+                #             "\n\nnew board:\n",new_env_info['board'][k],"\n\naction:",
+                #             action[k].cpu().item(),"\nreward", reward[k].item())
+                #     time.sleep(2)
+                #     print("--------------------------------------------")
 
                 ###############
                 ## punish draws
                 #idx_draw = torch.as_tensor(done)[:,None] * (reward == 0)
                 #reward[idx_draw] -= 0.1
 
-                if args.debug and done[0]:
-                    print("############\nGame finished. Last reward:", reward[done].flatten(), "\n############")
+                # if args.debug and done[0]:
+                #     print("############\nGame finished. Last reward:", reward[done].flatten(), "\n############")
 
                 for info in infos:
                     if "episode" in info.keys():

@@ -3,7 +3,7 @@ import experiment_buddy
 
 import torch.nn as nn
 
-USE_BUDDY = False
+USE_BUDDY = True
 use_cuda = True
 use_pretrained = False
 host = ""
@@ -19,7 +19,7 @@ entropy_coef = 0.01
 value_loss_coef = 0.5
 max_grad_norm = 0.5
 seed = 1
-num_processes = 16
+num_processes = 128
 num_steps = 5
 save_interval = 100
 num_stack = 1
