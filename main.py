@@ -54,12 +54,16 @@ VALUE_DICT = {'rigid':1, 'wood':2, 'bomb_incr':6,
 
 REWARD_FLAME_INC = 0.5
 REWARD_BOMB_INC = 0.5
-REWARD_KICK = 0.5
+REWARD_KICK_ITEM = 0.5
 REWARD_BOMB_WOOD = 0.2
+REWARD_PUSH_BOMB = 0.5
 REWARD_BOMB_BESIDES = 0.1
 REWARD_BOMB_DIAGONAL = 0.05
 REWARD_MV_TO_OPP = 0.01
-PUNISH_BOMB_NO_AMMO = -0.005
+PUNISH_BOMB_NO_AMMO = -0.01
+
+def calc_dist(a,b):
+    return ((a-b).abs()**2).sum(1).sqrt()
 
 def train(opponent=None, checkpoint_path="checkpoints/stage_2.pt"):
     torch.set_num_threads(1)
@@ -212,6 +216,8 @@ def train(opponent=None, checkpoint_path="checkpoints/stage_2.pt"):
 
                 # get current ammo
                 ammo = torch.as_tensor(old_env_info['ammo'])
+                can_kick = torch.as_tensor(old_env_info['can_kick'])
+                bomb_life = torch.as_tensor(old_env_info['bomb_life'])
 
                 # mark agents position on board with value 111 and opponent 
                 # position with 222
@@ -248,8 +254,8 @@ def train(opponent=None, checkpoint_path="checkpoints/stage_2.pt"):
                 # if dist_opp == 1, then the agent is right beside the opponent
                 # if dist_opp == sqrt(2), then the agent is diagonally adjacent
                 # if dist_opp > sqrt(2), then theres atleast 1 empty square between agent and opponent
-                pos_old['dist_opp'] = ((pos_old['oppon']-pos_old['agent']).abs()**2).sum(1).sqrt()
-                dist_opp_old_agent_new = ((pos_old['oppon']-pos_new['agent']).abs()**2).sum(1).sqrt()
+                pos_old['dist_opp'] = calc_dist(pos_old['oppon'],pos_old['agent'])
+                dist_opp_old_agent_new = calc_dist(pos_old['oppon'],pos_new['agent'])
 
                 ##########################################################
                 # give reward when placing bombs directly besides opponent
@@ -280,14 +286,14 @@ def train(opponent=None, checkpoint_path="checkpoints/stage_2.pt"):
                 ###########################################
                 # punish trying to lay bombs when ammo is 0
                 idx = (ammo == 0) * (action.cpu()==5).squeeze()
-                reward[idx] += PUNISH_BOMB_NO_AMMO * not_done[idx, None]
+                reward[idx] += (PUNISH_BOMB_NO_AMMO * not_done[idx, None])
 
                 if args.debug and idx[0]:
                     print(" -> punishment for trying to lay bomb without ammo!")
 
                 ###########################################
                 # give reward for placing bomb becides wood
-                dist_wood = [((pos_old['agent'][i]-w).abs()**2).sum(1).sqrt() for i, w in enumerate(pos_old['wood'])]
+                dist_wood = [calc_dist(pos_old['agent'][i],w) for i, w in enumerate(pos_old['wood'])]
                 num_wood_beside = torch.as_tensor([(el==1).sum() for el in dist_wood])
                 idx = (num_wood_beside>=1) * (action.cpu()==5).squeeze() * (ammo>0)
                 reward[idx] += REWARD_BOMB_WOOD * not_done[idx, None]
@@ -309,12 +315,30 @@ def train(opponent=None, checkpoint_path="checkpoints/stage_2.pt"):
                         if args.debug and k==0 and r:
                             print(" > reward for getting flame increase item!")
                     for p_k in pos_k:
-                        r = (pos_a == p_k).all().item() * REWARD_KICK * not_done[k]
+                        r = (pos_a == p_k).all().item() * REWARD_KICK_ITEM * not_done[k]
                         reward[k,0] += r
                         if args.debug and k==0 and r:
                             print(" > reward for getting kick item!")
  
- 
+                ##########################################
+                # reward pushing bomb when agent can kick!
+                idx_pushed_bomb = torch.zeros(pos_old['agent'].shape[0], dtype=bool)
+                for k, (bombs, b_life) in enumerate(zip(pos_old['bomb'], bomb_life)):
+                    if can_kick[k]:
+                        b_dist = calc_dist(pos_old['agent'][k],bombs)
+                        if b_dist.shape[0]:
+                            i = torch.argmin(b_dist) # closest bomb
+                            b_pos = bombs[i]
+                            is_beside = torch.isclose(b_dist[i], torch.tensor(1.))
+                            not_explode = b_life[b_pos[0],b_pos[1]] > 2
+                            if is_beside and (pos_new['agent'][k]==b_pos).all() and not_explode:
+                                idx_pushed_bomb[k] = True
+
+                reward[idx_pushed_bomb] += REWARD_PUSH_BOMB * not_done[idx_pushed_bomb,None]
+
+                if args.debug and idx_pushed_bomb[0]:
+                    print(" > reward for pushing a bomb away!")
+
                 ###############
                 ## punish draws
                 #idx_draw = torch.as_tensor(done)[:,None] * (reward == 0)
