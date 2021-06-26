@@ -275,8 +275,8 @@ def train(opponent=None, checkpoint_path="checkpoints/stage_2.pt"):
                 idx = (pos_old['dist_opp'] > dist_opp_old_agent_new)
                 reward[idx] += REWARD_MV_TO_OPP * not_done[idx,None]
 
-                if args.debug and idx[0]:
-                    print(" -> reward for TRYING TO move towards opponent!")
+                # if args.debug and idx[0]:
+                  #   print(" -> reward for TRYING TO move towards opponent!")
 
                 ###########################################
                 # punish trying to lay bombs when ammo is 0
@@ -337,8 +337,8 @@ def train(opponent=None, checkpoint_path="checkpoints/stage_2.pt"):
 
                 reward[idx_pushed_bomb] += REWARD_PUSH_BOMB * not_done[idx_pushed_bomb,None]
 
-                if args.debug and idx_pushed_bomb[0]:
-                    print(" > reward for pushing a bomb away!")
+                # if args.debug and idx_pushed_bomb[0]:
+                   #  print(" > reward for pushing a bomb away!")
                 ###############
                 ## punish draws
                 #idx_draw = torch.as_tensor(done)[:,None] * (reward == 0)
@@ -354,7 +354,7 @@ def train(opponent=None, checkpoint_path="checkpoints/stage_2.pt"):
                 #             action[0].cpu().item(), ", ammo =", ammo[0].item(),
                 #             "\nreward", reward[0].item())
                 #     print("--------------------------------------------")
-                    time.sleep(2)
+                    # time.sleep(2)
 
 
                 for info in infos:
@@ -403,7 +403,7 @@ def train(opponent=None, checkpoint_path="checkpoints/stage_2.pt"):
                 ]
 
                 torch.save(
-                    save_model, os.path.join(save_path, config.env_name + "_lukas.pt")
+                    save_model, os.path.join(save_path, config.env_name + "_no_recurrent.pt")
                 )
 
             total_num_steps = (j + 1) * update_factor
