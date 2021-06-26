@@ -36,6 +36,7 @@ cuda = use_cuda and torch.cuda.is_available()
 opponent_actor = None
 starting_board_position = 0
 random_start_position = False
+batch_norm = True
 
 if USE_BUDDY:
     experiment_buddy.register(locals())
