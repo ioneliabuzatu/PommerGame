@@ -51,7 +51,7 @@ except OSError:
 VALUE_DICT = {'rigid':1, 'wood':2, 'bomb_incr':6, 
     'flame_incr':7, 'flame':4, 'bomb':3}
 
-def main():
+def train(opponent=None, checkpoint_path="checkpoints/stage_2.pt"):
     torch.set_num_threads(1)
     device = torch.device("cuda:0" if config.cuda else "cpu")
     print(f"Training model on device [{device}] starting now...")
@@ -420,4 +420,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    train()

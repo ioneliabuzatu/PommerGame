@@ -149,7 +149,6 @@ def make_vec_envs(env_name, seed, num_processes, gamma, no_norm, num_stack,
  
     print(f"len(envs)={len(envs)}")
 
-
     if len(envs) > 1:
         envs = SubprocVecEnv(envs)
     else:
