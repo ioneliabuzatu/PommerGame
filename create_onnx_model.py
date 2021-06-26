@@ -19,9 +19,10 @@ USE_CUDA = True
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
-    "path",
+    "--path",
     type=str,
     help="path to .pt file",
+    default="GraphicOVOCompact-v0_recurrent_and_bombing.pt"
 )
 parser.add_argument(
     "--name",
@@ -30,7 +31,7 @@ parser.add_argument(
 )
 args = parser.parse_args()
 
-actor_critic = pretrained_model.load_pretrained(train=False, path=args.path)
+actor_critic = pretrained_model.load_pretrained(train=False, path=args.path, recurrent=True)
 
 input = torch.zeros((5, 56, 48))
 filename = ONNX_FILENAME if not args.name else args.name
