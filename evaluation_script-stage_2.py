@@ -7,13 +7,15 @@ from gym import logger as gymlogger
 import os
 
 gymlogger.set_level(40)  # error only
-os.system("pip install -U git+https://github.com/MultiAgentLearning/playground")
 try:
-    import graphic_pomme_env
+    from graphic_pomme_env.wrappers import PommerEnvWrapperFrameSkip2
 except ImportError:
     os.system("pip install -U git+https://github.com/RLCommunity/graphic_pomme_env")
     from graphic_pomme_env.wrappers import PommerEnvWrapperFrameSkip2
-
+try:
+    os.system("pip install -U git+https://github.com/MultiAgentLearning/playground")
+except:
+    print("Ouch, give it a name to the except!")
 
 np.random.seed(147)
 torch.manual_seed(147)
@@ -23,16 +25,16 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--agent", type=str, help="Path to onnx model of agent", default="./checkpoints/stage_2.onnx")
-    parser.add_argument("--opponent", type=str, help="Path to onnx model of opponent",
-                        default="./checkpoints/curriculum-actors/submission_onnx_WR86.onnx")
+    parser.add_argument(
+        "--opponent", type=str, help="Path to onnx model of opponent", default="./checkpoints/stage_2.onnx"
+    )
     args = parser.parse_args()
     model_file = args.agent
     opponent_file = args.opponent
 
-    # Agent Network
     agent = ConvertModel(onnx.load(model_file), experimental=True).cuda()
     agent.eval()
-    # Opponent Network
+
     opponent = ConvertModel(onnx.load(opponent_file), experimental=True).cuda()
     opponent.eval()
 
@@ -43,7 +45,7 @@ if __name__ == "__main__":
     for i in range(N_EPISODES):
         if i > 50:
             env = PommerEnvWrapperFrameSkip2(num_stack=5, start_pos=1, board='GraphicOVOCompact-v0')
-            
+
         done = False
         obs, opponent_obs = env.reset()
         observations = []
