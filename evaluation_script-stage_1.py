@@ -33,12 +33,15 @@ if __name__ == "__main__":
     net.eval()
 
     win_count = 0.0
+    draw_count = 0.0
+    lost_count = 0.0
     env = PommerEnvWrapperFrameSkip2(num_stack=5, start_pos=0, board='GraphicOVOCompact-v0')
 
     for i in range(N_EPISODES):
 
         done = False
         obs, opponent_obs = env.reset()
+        step_cnt = 0
         while not done:
             obs = torch.from_numpy(np.array(obs)).float()
             net_out = net(obs).detach().cpu().numpy()
@@ -46,8 +49,15 @@ if __name__ == "__main__":
 
             agent_step, opponent_step = env.step(action)
             obs, r, done, info = agent_step
+            step_cnt += 1
 
         if r > 0:
             win_count += 1
+        elif step_cnt >= 800:
+            draw_count += 1
+        else:
+            lost_count += 1
 
-    print(win_count / N_EPISODES)
+    print(f"Win ratio: {win_count / N_EPISODES} "
+          f"\n Lost ratio {lost_count/N_EPISODES} "
+          f"\n Draws ratio {draw_count/N_EPISODES}")

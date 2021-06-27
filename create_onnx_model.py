@@ -11,7 +11,7 @@ N_game = 50
 NUM_ACTIONS = 6
 RENDER = False
 ENV_ID = 'GraphicOVOCompact-v0'
-ONNX_FILENAME = "second_stage_pommer_man.onnx"
+ONNX_FILENAME = "checkpoints/reward_shaping_bombing_lukas.onnx"
 USE_CUDA = True
 
 if torch.cuda.is_available() and USE_CUDA:
@@ -21,9 +21,9 @@ else:
 
 obs_space = Box(np.zeros(13440), np.ones(13440))
 action_space = Discrete(6)
-nn_kwargs = {'batch_norm': True, 'recurrent': True, 'hidden_size': 512, 'cnn_config': 'conv5', }
+nn_kwargs = {'batch_norm': True, 'recurrent': False, 'hidden_size': 512, 'cnn_config': 'conv5', }
 actor_critic = Policy(PommNet(obs_shape=obs_space.shape, **nn_kwargs).train(), action_space=action_space)
-actor_critic.load_state_dict(torch.load("./checkpoints/reward_redistribution.pt")[0])
+actor_critic.load_state_dict(torch.load("./checkpoints/reward_shaping_bombing_lukas.pt")[0])
 actor_critic = actor_critic.to(device)
 
 

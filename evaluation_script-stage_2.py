@@ -24,9 +24,11 @@ if __name__ == "__main__":
     N_EPISODES = 100
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--agent", type=str, help="Path to onnx model of agent", default="./checkpoints/stage_2.onnx")
+    parser.add_argument("--agent", type=str, help="Path to onnx model of agent",
+                        default="./checkpoints/reward_shaping_bombing_lukas.onnx")
     parser.add_argument(
-        "--opponent", type=str, help="Path to onnx model of opponent", default="./checkpoints/stage_2.onnx"
+        "--opponent", type=str, help="Path to onnx model of opponent",
+        default="./checkpoints/curriculum-actors/Final_Challenge_k11931415.onnx"
     )
     args = parser.parse_args()
     model_file = args.agent
@@ -35,16 +37,17 @@ if __name__ == "__main__":
     agent = ConvertModel(onnx.load(model_file), experimental=True).cuda()
     agent.eval()
 
-    opponent = ConvertModel(onnx.load(opponent_file), experimental=True).cuda()
-    opponent.eval()
+    opponent = ConvertModel(onnx.load(opponent_file), experimental=True).cuda().eval()
 
     win_count_player = 0.0
     win_count_opponent = 0.0
 
-    env = PommerEnvWrapperFrameSkip2(num_stack=5, start_pos=0, board='GraphicOVOCompact-v0')
+    env = PommerEnvWrapperFrameSkip2(num_stack=5, start_pos=0, board='GraphicOVOCompact-v0', opponent_actor=opponent)
     for i in range(N_EPISODES):
         if i > 50:
-            env = PommerEnvWrapperFrameSkip2(num_stack=5, start_pos=1, board='GraphicOVOCompact-v0')
+            env = PommerEnvWrapperFrameSkip2(
+                num_stack=5, start_pos=1, board='GraphicOVOCompact-v0', opponent_actor=opponent
+            )
 
         done = False
         obs, opponent_obs = env.reset()
