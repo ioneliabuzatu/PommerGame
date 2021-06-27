@@ -1,25 +1,23 @@
-from gym.spaces import Discrete
-from gym.spaces.box import Box
-
+import gc
 import glob
 import os
-import time
 import re
-import argparse
+import time
 from collections import deque
-import gc
 
 import numpy as np
 import torch
+from gym.spaces import Discrete
+from gym.spaces.box import Box
 from torch.utils.tensorboard import SummaryWriter
 
 import config
 import src
 from envs import make_vec_envs
+from helpers import pretrained_model
 from src.models.model_pomm import PommNet
 from src.models.policy import Policy
 from src.rollout_storage import RolloutStorage
-from helpers import pretrained_model
 
 update_factor = config.num_steps * config.num_processes
 # num_updates = int(config.num_frames) // update_factor
@@ -48,9 +46,8 @@ except OSError:
     for f in files:
         os.remove(f)
 
-
-VALUE_DICT = {'rigid':1, 'wood':2, 'bomb_incr':6, 
-        'flame_incr':7, 'kick':8, 'flame':4, 'bomb':3}
+VALUE_DICT = {'rigid': 1, 'wood': 2, 'bomb_incr': 6,
+              'flame_incr': 7, 'kick': 8, 'flame': 4, 'bomb': 3}
 
 REWARD_FLAME_INC = 0.5
 REWARD_BOMB_INC = 0.5
@@ -62,8 +59,10 @@ REWARD_BOMB_DIAGONAL = 0.05
 REWARD_MV_TO_OPP = 0.01
 PUNISH_BOMB_NO_AMMO = -0.01
 
-def calc_dist(a,b):
-    return ((a-b).abs()**2).sum(1).sqrt()
+
+def calc_dist(a, b):
+    return ((a - b).abs() ** 2).sum(1).sqrt()
+
 
 def train(opponent=None, checkpoint_path="checkpoints/stage_2.pt"):
     torch.set_num_threads(1)
@@ -216,12 +215,13 @@ def train(opponent=None, checkpoint_path="checkpoints/stage_2.pt"):
 
                 # mark agents position on board with value 111 and opponent 
                 # position with 222
-                for board_old, board_new, enemy_val in zip(old_env_info['board'], new_env_info['board'], old_env_info['enemies']):
-                    agent_val = 10 if enemy_val[0].value==11 else 11
-                    board_old[board_old==agent_val] = 111
-                    board_old[board_old==enemy_val[0].value] = 222
-                    board_new[board_new==agent_val] = 111
-                    board_new[board_new==enemy_val[0].value] = 222
+                for board_old, board_new, enemy_val in zip(old_env_info['board'], new_env_info['board'],
+                                                           old_env_info['enemies']):
+                    agent_val = 10 if enemy_val[0].value == 11 else 11
+                    board_old[board_old == agent_val] = 111
+                    board_old[board_old == enemy_val[0].value] = 222
+                    board_new[board_new == agent_val] = 111
+                    board_new[board_new == enemy_val[0].value] = 222
 
                 ##############################
                 # get positions of all objects
@@ -234,34 +234,34 @@ def train(opponent=None, checkpoint_path="checkpoints/stage_2.pt"):
                 pos_new['agent'] = torch.as_tensor(new_env_info['position'])
                 pos_new['oppon'] = torch.zeros_like(pos_new['agent'])
 
-                for k, (b_old, b_new) in enumerate(zip(old_env_info['board'],new_env_info['board'])):
+                for k, (b_old, b_new) in enumerate(zip(old_env_info['board'], new_env_info['board'])):
                     b_old, b_new = torch.as_tensor(b_old, dtype=torch.int32), torch.as_tensor(b_new, dtype=torch.int32)
                     if 222 in b_old:
-                        pos_old['oppon'][k,:] = torch.as_tensor(torch.where(b_old==222))
+                        pos_old['oppon'][k, :] = torch.as_tensor(torch.where(b_old == 222))
                     if 222 in b_new:
-                        pos_new['oppon'][k,:] = torch.as_tensor(torch.where(b_new==222))
+                        pos_new['oppon'][k, :] = torch.as_tensor(torch.where(b_new == 222))
 
                     for key in VALUE_DICT.keys():
-                        pos_old[key].append(torch.as_tensor(np.where(b_old==VALUE_DICT[key])).T)
-                        pos_new[key].append(torch.as_tensor(np.where(b_new==VALUE_DICT[key])).T)
+                        pos_old[key].append(torch.as_tensor(np.where(b_old == VALUE_DICT[key])).T)
+                        pos_new[key].append(torch.as_tensor(np.where(b_new == VALUE_DICT[key])).T)
 
                 # direct distance to opponent
                 # if dist_opp == 1, then the agent is right beside the opponent
                 # if dist_opp == sqrt(2), then the agent is diagonally adjacent
                 # if dist_opp > sqrt(2), then theres atleast 1 empty square between agent and opponent
-                pos_old['dist_opp'] = calc_dist(pos_old['oppon'],pos_old['agent'])
-                dist_opp_old_agent_new = calc_dist(pos_old['oppon'],pos_new['agent'])
+                pos_old['dist_opp'] = calc_dist(pos_old['oppon'], pos_old['agent'])
+                dist_opp_old_agent_new = calc_dist(pos_old['oppon'], pos_new['agent'])
 
                 ##########################################################
                 # give reward when placing bombs directly besides opponent
                 # and give smaller reward when placing bombs diagonally adjacent to opponent
                 idx = (action.cpu() == 5).squeeze()
                 is_besides = torch.isclose(pos_old['dist_opp'][idx], torch.tensor(1.))
-                is_diagonal = (pos_old['dist_opp'][idx]<2.) * (~is_besides)
+                is_diagonal = (pos_old['dist_opp'][idx] < 2.) * (~is_besides)
 
-                r1 = REWARD_BOMB_BESIDES * (is_besides)[:,None] * not_done[idx,None]
+                r1 = REWARD_BOMB_BESIDES * (is_besides)[:, None] * not_done[idx, None]
                 reward[idx] += r1
-                r2 = REWARD_BOMB_DIAGONAL * (is_diagonal)[:,None] * not_done[idx,None]
+                r2 = REWARD_BOMB_DIAGONAL * (is_diagonal)[:, None] * not_done[idx, None]
                 reward[idx] += r2
 
                 # if args.debug and idx[0] and r1[0]:
@@ -273,14 +273,14 @@ def train(opponent=None, checkpoint_path="checkpoints/stage_2.pt"):
                 ##############################################
                 # give small reward for going towards opponent
                 idx = (pos_old['dist_opp'] > dist_opp_old_agent_new)
-                reward[idx] += REWARD_MV_TO_OPP * not_done[idx,None]
+                reward[idx] += REWARD_MV_TO_OPP * not_done[idx, None]
 
                 # if args.debug and idx[0]:
-                  #   print(" -> reward for TRYING TO move towards opponent!")
+                #   print(" -> reward for TRYING TO move towards opponent!")
 
                 ###########################################
                 # punish trying to lay bombs when ammo is 0
-                idx = (ammo == 0) * (action.cpu()==5).squeeze()
+                idx = (ammo == 0) * (action.cpu() == 5).squeeze()
                 reward[idx] += (PUNISH_BOMB_NO_AMMO * not_done[idx, None])
 
                 # if args.debug and idx[0]:
@@ -288,9 +288,9 @@ def train(opponent=None, checkpoint_path="checkpoints/stage_2.pt"):
 
                 ###########################################
                 # give reward for placing bomb becides wood
-                dist_wood = [calc_dist(pos_old['agent'][i],w) for i, w in enumerate(pos_old['wood'])]
-                num_wood_beside = torch.as_tensor([(el==1).sum() for el in dist_wood])
-                idx = (num_wood_beside>=1) * (action.cpu()==5).squeeze() * (ammo>0)
+                dist_wood = [calc_dist(pos_old['agent'][i], w) for i, w in enumerate(pos_old['wood'])]
+                num_wood_beside = torch.as_tensor([(el == 1).sum() for el in dist_wood])
+                idx = (num_wood_beside >= 1) * (action.cpu() == 5).squeeze() * (ammo > 0)
                 reward[idx] += REWARD_BOMB_WOOD * not_done[idx, None]
 
                 # if args.debug and idx[0]:
@@ -298,18 +298,18 @@ def train(opponent=None, checkpoint_path="checkpoints/stage_2.pt"):
 
                 #################################
                 # give reward for getting an item
-                for k, (pos_a, pos_b, pos_f, pos_k) in enumerate(zip(pos_new['agent'], pos_old['bomb_incr'], pos_old['flame_incr'], pos_old['kick'])):
+                for k, (pos_a, pos_b, pos_f, pos_k) in enumerate(
+                        zip(pos_new['agent'], pos_old['bomb_incr'], pos_old['flame_incr'], pos_old['kick'])):
                     for p_b in pos_b:
                         r = (pos_a == p_b).all().item() * REWARD_BOMB_INC * not_done[k]
-                        reward[k,0] += r
+                        reward[k, 0] += r
                         # if args.debug and k==0 and r:
                         #     print(" -> 0.5 bomb increase item!")
                     for p_f in pos_f:
                         r = (pos_a == p_f).all().item() * REWARD_FLAME_INC * not_done[k]
-                        reward[k,0] += r
+                        reward[k, 0] += r
                         # if args.debug and k==0 and r:
                         #     print(" > Got flame increase item!")
- 
 
                 ##############################################
                 ## Debugging: follow what happens on the board
@@ -326,23 +326,23 @@ def train(opponent=None, checkpoint_path="checkpoints/stage_2.pt"):
                 idx_pushed_bomb = torch.zeros(pos_old['agent'].shape[0], dtype=bool)
                 for k, (bombs, b_life) in enumerate(zip(pos_old['bomb'], bomb_life)):
                     if can_kick[k]:
-                        b_dist = calc_dist(pos_old['agent'][k],bombs)
+                        b_dist = calc_dist(pos_old['agent'][k], bombs)
                         if b_dist.shape[0]:
-                            i = torch.argmin(b_dist) # closest bomb
+                            i = torch.argmin(b_dist)  # closest bomb
                             b_pos = bombs[i]
                             is_beside = torch.isclose(b_dist[i], torch.tensor(1.))
-                            not_explode = b_life[b_pos[0],b_pos[1]] > 2
-                            if is_beside and (pos_new['agent'][k]==b_pos).all() and not_explode:
+                            not_explode = b_life[b_pos[0], b_pos[1]] > 2
+                            if is_beside and (pos_new['agent'][k] == b_pos).all() and not_explode:
                                 idx_pushed_bomb[k] = True
 
-                reward[idx_pushed_bomb] += REWARD_PUSH_BOMB * not_done[idx_pushed_bomb,None]
+                reward[idx_pushed_bomb] += REWARD_PUSH_BOMB * not_done[idx_pushed_bomb, None]
 
                 # if args.debug and idx_pushed_bomb[0]:
-                   #  print(" > reward for pushing a bomb away!")
+                #  print(" > reward for pushing a bomb away!")
                 ###############
                 ## punish draws
-                #idx_draw = torch.as_tensor(done)[:,None] * (reward == 0)
-                #reward[idx_draw] -= 0.1
+                # idx_draw = torch.as_tensor(done)[:,None] * (reward == 0)
+                # reward[idx_draw] -= 0.1
 
                 # if args.debug and done[0]:
                 #     print("############\nGame finished. Last reward:", reward[done].flatten(), "\n############")
@@ -354,8 +354,7 @@ def train(opponent=None, checkpoint_path="checkpoints/stage_2.pt"):
                 #             action[0].cpu().item(), ", ammo =", ammo[0].item(),
                 #             "\nreward", reward[0].item())
                 #     print("--------------------------------------------")
-                    # time.sleep(2)
-
+                # time.sleep(2)
 
                 for info in infos:
                     if "episode" in info.keys():
@@ -402,9 +401,7 @@ def train(opponent=None, checkpoint_path="checkpoints/stage_2.pt"):
                     hasattr(envs.venv, "ob_rms") and envs.venv.ob_rms or None,
                 ]
 
-                torch.save(
-                    save_model, os.path.join(save_path, config.env_name + "_no_recurrent.pt")
-                )
+                torch.save(save_model, os.path.join(save_path, config.env_name + ".pt"))
 
             total_num_steps = (j + 1) * update_factor
 
@@ -434,10 +431,10 @@ def train(opponent=None, checkpoint_path="checkpoints/stage_2.pt"):
                 tensorboard_x_data_points_counts += 1
 
             if (
-                config.eval_interval
-                and len(episode_rewards) > 1
-                and j > 0
-                and j % config.eval_interval == 0
+                    config.eval_interval
+                    and len(episode_rewards) > 1
+                    and j > 0
+                    and j % config.eval_interval == 0
             ):
                 eval_episode_rewards = []
 
