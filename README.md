@@ -1,5 +1,8 @@
 # Play Pommerman with A2C agent
 
+[Competition presentation slides](https://docs.google.
+com/presentation/d/1xzbDiAdsOS4i5DYl986K1Cy4fntX2Z3lowpsiPS202w/edit?usp=sharing)
+
 Three games of pommerman
 
 ![games](https://imgur.com/GmthDXw.gif)
