@@ -33,6 +33,7 @@ rm -rf ./graphic_pomme_env
 References:
 
 Initial game setup https://github.com/plassma/Pommerman-DRL \
-Model https://github.com/ikostrikov/pytorch-a2c-ppo-acktr-gail
+Model https://github.com/ikostrikov/pytorch-a2c-ppo-acktr-gail \
+Reward Redistribution using Rudder Idea https://github.com/widmi/rudder-a-practical-tutorial/blob/master/tutorial.ipynb
 
 
