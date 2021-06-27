@@ -32,7 +32,7 @@ rm -rf ./graphic_pomme_env
 
 References:
 
-Initial game setup https://github.com/plassma/Pommerman-DRL
+Initial game setup https://github.com/plassma/Pommerman-DRL \
 Model https://github.com/ikostrikov/pytorch-a2c-ppo-acktr-gail
 
 
