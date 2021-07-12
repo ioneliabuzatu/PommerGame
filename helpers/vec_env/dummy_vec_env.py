@@ -37,12 +37,12 @@ class DummyVecEnv(VecEnv):
             if isinstance(self.envs[e].action_space, spaces.Discrete):
                 action = int(action)
 
-            obs, self.buf_rews[e], self.buf_dones[e], self.buf_infos[e] = self.envs[e].step(action)
+            obs, self.buf_rews[e], self.buf_dones[e], self.buf_infos[e], old_end_info, new_env_info = self.envs[e].step(action)
             if self.buf_dones[e]:
                 obs = self.envs[e].reset()
             self._save_obs(e, obs)
         return (self._obs_from_buf(), np.copy(self.buf_rews), np.copy(self.buf_dones),
-                self.buf_infos.copy())
+                self.buf_infos.copy(), old_end_info, new_env_info)
 
     def reset(self):
         for e in range(self.num_envs):

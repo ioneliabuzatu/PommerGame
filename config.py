@@ -1,9 +1,6 @@
 import torch
-import experiment_buddy
-
 import torch.nn as nn
 
-USE_BUDDY = False
 use_cuda = True
 use_pretrained = False
 host = ""
@@ -21,9 +18,9 @@ max_grad_norm = 0.5
 seed = 1
 num_processes = 16
 num_steps = 5
+save_interval = 100
 num_stack = 1
 log_interval = 10
-save_interval = 100
 eval_interval = 1000
 num_frames = 5e7
 env_name = 'GraphicOVOCompact-v0'
@@ -37,11 +34,3 @@ opponent_actor = None
 starting_board_position = 0
 random_start_position = False
 
-if USE_BUDDY:
-    experiment_buddy.register(locals())
-    tensorboard = experiment_buddy.deploy(
-        host,
-        sweep_yaml="",
-        proc_num=1,
-        wandb_kwargs={"entity": "ionelia"}
-    )

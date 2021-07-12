@@ -21,7 +21,7 @@ np.random.seed(147)
 torch.manual_seed(147)
 
 if __name__ == "__main__":
-    N_EPISODES = 50
+    N_EPISODES = 100
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--submission", type=str, default="submission_model.onnx")
@@ -37,7 +37,12 @@ if __name__ == "__main__":
     lost_count = 0.0
     env = PommerEnvWrapperFrameSkip2(num_stack=5, start_pos=0, board='GraphicOVOCompact-v0')
 
+    start_pos = 0
+    env = PommerEnvWrapperFrameSkip2(num_stack=5, start_pos=start_pos, board='GraphicOVOCompact-v0')
     for i in range(N_EPISODES):
+        if i==N_EPISODES/2:
+            start_pos = 1
+            env = PommerEnvWrapperFrameSkip2(num_stack=5, start_pos=start_pos, board='GraphicOVOCompact-v0')
 
         done = False
         obs, opponent_obs = env.reset()
@@ -61,3 +66,4 @@ if __name__ == "__main__":
     print(f"Win ratio: {win_count / N_EPISODES} "
           f"\n Lost ratio {lost_count/N_EPISODES} "
           f"\n Draws ratio {draw_count/N_EPISODES}")
+
