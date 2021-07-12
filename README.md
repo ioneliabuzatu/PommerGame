@@ -1,5 +1,8 @@
 # Play Pommerman with A2C agent
 
+[Competition presentation slides](https://docs.google.
+com/presentation/d/1xzbDiAdsOS4i5DYl986K1Cy4fntX2Z3lowpsiPS202w/edit?usp=sharing)
+
 Three games of pommerman
 
 ![games](https://imgur.com/GmthDXw.gif)
@@ -22,9 +25,15 @@ rm -rf ./graphic_pomme_env
 - maybe you need to install torch - pip3 install torch==1.8.1+cu111 torchvision==0.9.1+cu111 torchaudio==0.8.1 -f https://download.pytorch.org/whl/torch_stable.html
 
 #### Training reward 
-![](assets/pommerman_a2c_reward.png)
+![](assets/pommerman_reward.png)
 
+
+### TODO: Reward Redistirbution
 
 References:
+
+Initial game setup https://github.com/plassma/Pommerman-DRL \
+Model https://github.com/ikostrikov/pytorch-a2c-ppo-acktr-gail \
+Reward Redistribution using Rudder Idea https://github.com/widmi/rudder-a-practical-tutorial/blob/master/tutorial.ipynb
 
 

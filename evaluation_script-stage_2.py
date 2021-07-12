@@ -7,15 +7,17 @@ from gym import logger as gymlogger
 import os
 
 gymlogger.set_level(40)  # error only
-#os.system("git clone https://github.com/MultiAgentLearning/playground ./pommer_setup")
-#os.system("pip install -U ./pommer_setup")
-#os.system('rm -rf ./pommer_setup')
-#os.system("git clone https://github.com/RLCommunity/graphic_pomme_env ./graphic_pomme_env")
-#os.system("pip install -U ./graphic_pomme_env")
-#os.system('rm -rf ./graphic_pomme_env')
 
-from graphic_pomme_env import graphic_pomme_env
-from helpers.my_wrappers import PommerEnvWrapperFrameSkip2
+try:
+    from graphic_pomme_env.wrappers import PommerEnvWrapperFrameSkip2
+except ImportError:
+    os.system("pip install -U git+https://github.com/RLCommunity/graphic_pomme_env")
+    from graphic_pomme_env.wrappers import PommerEnvWrapperFrameSkip2
+try:
+    os.system("pip install -U git+https://github.com/MultiAgentLearning/playground")
+except:
+    print("Ouch, give it a name to the except!")
+
 
 np.random.seed(147)
 torch.manual_seed(147)
@@ -25,8 +27,12 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--agent", type=str, help="Path to onnx model of agent")
-    parser.add_argument("--opponent", type=str, help="Path to onnx model of opponent")
+    parser.add_argument("--agent", type=str, help="Path to onnx model of agent",
+                        default="./checkpoints/reward_shaping_bombing_lukas.onnx")
+    parser.add_argument(
+        "--opponent", type=str, help="Path to onnx model of opponent",
+        default="./checkpoints/curriculum-actors/Final_Challenge_k11931415.onnx"
+    )
 
     args = parser.parse_args()
     model_file = args.agent
@@ -48,12 +54,12 @@ if __name__ == "__main__":
     draw_count = 0.0
     win_count_opponent = 0.0
 
+    env = PommerEnvWrapperFrameSkip2(num_stack=5, start_pos=0, board='GraphicOVOCompact-v0', opponent_actor=opponent)
     for i in range(N_EPISODES):
-        if not i % 2:
-            start_pos = 1
-        else:
-            start_pos = 0
-        env = PommerEnvWrapperFrameSkip2(num_stack=5, start_pos=start_pos, board='GraphicOVOCompact-v0')
+        if i > 50:
+            env = PommerEnvWrapperFrameSkip2(
+                num_stack=5, start_pos=1, board='GraphicOVOCompact-v0', opponent_actor=opponent
+            )
 
         done = False
         obs, opponent_obs = env.reset()

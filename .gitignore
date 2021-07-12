@@ -1,0 +1,8 @@
+.idea/
+__pycache__/
+*.pt
+results/
+wandb/
+runs/
+*avi
+trash

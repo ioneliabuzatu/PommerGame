@@ -13,6 +13,7 @@ from helpers import pretrained_model
 N_game = 50
 NUM_ACTIONS = 6
 RENDER = False
+
 ENV_ID = "GraphicOVOCompact-v0"
 ONNX_FILENAME = "second_stage_pommer_man.onnx"
 USE_CUDA = True
@@ -42,3 +43,4 @@ torch.onnx.export(
     opset_version=12,
     do_constant_folding=True,
 )
+

@@ -32,8 +32,10 @@ if __name__ == "__main__":
     net = ConvertModel(onnx.load(model_file), experimental=True)
     net.eval()
 
-    win_count_0 = 0.0
-    win_count_1 = 0.0
+    win_count = 0.0
+    draw_count = 0.0
+    lost_count = 0.0
+    env = PommerEnvWrapperFrameSkip2(num_stack=5, start_pos=0, board='GraphicOVOCompact-v0')
 
     start_pos = 0
     env = PommerEnvWrapperFrameSkip2(num_stack=5, start_pos=start_pos, board='GraphicOVOCompact-v0')
@@ -44,6 +46,7 @@ if __name__ == "__main__":
 
         done = False
         obs, opponent_obs = env.reset()
+        step_cnt = 0
         while not done:
             obs = torch.from_numpy(np.array(obs)).float()
             net_out = net(obs).detach().cpu().numpy()
@@ -51,11 +54,16 @@ if __name__ == "__main__":
 
             agent_step, opponent_step = env.step(action)
             obs, r, done, info = agent_step
+            step_cnt += 1
 
-        if r > 0 and start_pos==0:
-            win_count_0 += 1
-        elif r>0:
-            win_count_1 += 1
+        if r > 0:
+            win_count += 1
+        elif step_cnt >= 800:
+            draw_count += 1
+        else:
+            lost_count += 1
 
-    print("Pos. 0:", win_count_0 / (N_EPISODES/2))
-    print("Pos. 1:", win_count_1 / (N_EPISODES/2))
+    print(f"Win ratio: {win_count / N_EPISODES} "
+          f"\n Lost ratio {lost_count/N_EPISODES} "
+          f"\n Draws ratio {draw_count/N_EPISODES}")
+

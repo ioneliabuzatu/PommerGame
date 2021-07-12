@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 
 use_cuda = True
+use_pretrained = False
 host = ""
 
 lr = 2.5e4
@@ -26,7 +27,7 @@ env_name = 'GraphicOVOCompact-v0'
 log_dir = '/tmp/gym/'
 save_dir = './checkpoints/'
 add_timestep = False  # add time_step to observations
-recurrent_policy = False
+recurrent_policy = True
 no_norm = True  # no normalization, no reward shaping
 cuda = use_cuda and torch.cuda.is_available()
 opponent_actor = None

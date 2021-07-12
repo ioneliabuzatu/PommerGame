@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 import torch
+
 from helpers import pretrained_model
 
 from graphic_pomme_env import graphic_pomme_env
@@ -38,9 +39,11 @@ def play(model, opponent_actor=None):
     text_img = cv2.putText(text_img, 'Opponent', text_pos, cv2.FONT_HERSHEY_SIMPLEX, 0.3, (255,255,255), 1)
     all_renders_img += [text_img]*8
 
+
     win_count_player = 0
     win_count_opponent = 0
     for start_pos in [0,1]:
+
         print(f"\n -- Start position {start_pos}:\n")
         text_pos = (1, 13)
         text_img = cv2.putText(black_img.copy(), f'Pos. {start_pos}', text_pos, cv2.FONT_HERSHEY_SIMPLEX, 0.35, (255,255,255), 1)
@@ -61,10 +64,12 @@ def play(model, opponent_actor=None):
 
             while not done:
                 k += 1
+
                 net_out = model(torch.tensor(obs).float())
                 action = net_out.argmax(1).item()
 
                 agent_step, opponent_step, _, _ = env.step(action)
+
                 obs, r, done, info = agent_step
 
                 rgb_img = np.array(env.get_rgb_img())
@@ -72,6 +77,7 @@ def play(model, opponent_actor=None):
 
                 if k >= 800:
                     r = 0
+
                     outcome = "DRAW"
                     break
 
@@ -126,3 +132,4 @@ if __name__ == "__main__":
         opponent_actor = None
 
     play(actor_critic, opponent_actor)
+

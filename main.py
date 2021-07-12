@@ -120,6 +120,9 @@ def train(opponent=None, checkpoint_path="checkpoints/stage_2.pt"):
         alpha=config.alpha,
         max_grad_norm=config.max_grad_norm,
     )
+    state_dict, _ = torch.load(checkpoint_path)
+    if config.use_pretrained:
+        actor_critic.load_state_dict(state_dict)
 
     print("\n-----------\nMain Loop\n-----------\n")
     while True:
